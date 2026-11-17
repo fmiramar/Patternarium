@@ -10,7 +10,8 @@
 - [x] Implement and test the five mathematical-sequence Patterns.
 - [x] Implement and test point processes, finite constraints and graph traversal.
 - [x] Render current Help and execute examples without audio.
-- [ ] Pass tests on compatible develop, Linux, macOS and Windows.
+- [x] Pass the first hosted Linux test and server-free Help run.
+- [ ] Finish the compatible develop/Linux/macOS/Windows validation matrix.
 - [x] Owner audio review accepted for now; no automated audio checks planned.
 - [x] Replace Pwindow array shifting with indexed ring buffering and regression coverage.
 - [ ] Finish the broader independent-stream, resource-use and growth-limit audit.

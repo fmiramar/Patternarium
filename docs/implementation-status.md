@@ -31,7 +31,7 @@ The first restricted-session sclang launch aborted in Qt's NEON feature probe be
 
 ## Next work and release gates
 
-Implementation milestones 0–4 are locally validated. Milestone 5 stabilization remains. It requires independent algorithm/API review, broader resource/performance audits, target-version Linux/Windows/develop validation and final metadata/provenance review. Linux CI is configured but has not been run remotely. No independent second-provider review or cross-platform success is claimed.
+Implementation milestones 0–4 are locally validated. Milestone 5 stabilization remains. It requires independent algorithm/API review, broader resource/performance audits, target-version Linux/Windows/develop validation and final metadata/provenance review. The first hosted Linux CI run passed both the complete test suite and server-free Help checks: https://github.com/fmiramar/Patternarium/actions/runs/44145465053 (implementation commit ad1cc83). Independent second-provider review and the complete Windows/develop compatibility matrix remain pending.
 
 ## Added sound-example pass
 
@@ -44,3 +44,7 @@ The Help checker now renders 25 files and evaluates 347 code blocks. An addition
 Pwindow now uses an indexed ring buffer. It copies each output in logical source order, clears dropped references and preserves overlap/gap/partial behavior without shifting retained items. Added 250 independent finite reference cases plus output-mutation and latest-inval gap regressions. The expanded suite passed both before and after the replacement. Added overlapping and wide-step finite benchmark workloads.
 
 The owner has completed the audio review and accepted it for now. No automated audio rendering/playback checks will be added; existing language and server-free documentation checks remain separate. Metadata credits Fellipe Miranda Martins and points to https://github.com/fmiramar/Patternarium. No model change was needed for this cleanup.
+
+## GitHub publication
+
+The public development repository is https://github.com/fmiramar/Patternarium, on branch main. The supplied banner.png is displayed at the top of the README, and GitHub installation instructions are included. This publishes the development source; version 0.4.0-dev remains untagged and no stable release is claimed.
