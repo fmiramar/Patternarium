@@ -1,0 +1,314 @@
+TITLE:: Pwindow
+SUMMARY:: Lazy sliding windows over any source
+CATEGORIES:: Streams-Patterns-Events>Patterns>Patternarium
+RELATED:: Classes/Pscan, Classes/Pclump, Classes/Pslide
+
+DESCRIPTION::
+Yields fresh shallow Arrays of size items, advancing by step. Overlap, clumping and gaps are supported. Partial true emits one final incomplete window only when a new buffered item has arrived since the last full window. It never emits a trailing overlap by itself. No leading partial windows are produced unless the source is shorter than size. An indexed ring buffer uses O(size) storage. Each yielded Array costs O(size) to copy; advancing the buffer clears dropped references without shifting retained items. Gapped windows additionally consume step-size skipped values. Source termination returns the latest inval.
+
+CLASSMETHODS::
+METHOD:: new
+ARGUMENT:: pattern
+Source Pattern.
+ARGUMENT:: size
+Positive Integer, Function or Pattern evaluated once.
+ARGUMENT:: step
+Positive Integer, default 1; evaluated once.
+ARGUMENT:: partial
+Boolean, default false; evaluated once.
+
+INSTANCEMETHODS::
+METHOD:: storeArgs
+Returns the constructor arguments for archive reconstruction.
+METHOD:: embedInStream
+Runs the stream protocol and returns the latest inval on termination.
+
+EXAMPLES::
+code::
+Pwindow(Pseries(0, 1, 6), 3).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pwindow / Value stream
+var values = {
+Pwindow(Pseries(0, 1, 6), 3).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isArray) { x } { x*2 }, dur: 0.22, amp: 0.06)
+}.play;
+)
+::
+
+SECTION:: Musical example
+Load the example instruments in link::Guides/Patternarium#Example instruments:: first, then evaluate this block.
+code::
+(
+Pbind(\instrument, \fmPiano, \degree, Pwindow(Pseries(0, 1, 16), 3, 2).collect(_.mean), \dur, 0.125).play;
+)
+::
+
+SUBSECTION:: Moving mean
+code::
+Pwindow(Pseries(1, 1, 8), 3).collect(_.mean).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pwindow / Moving mean
+var values = {
+Pwindow(Pseries(1, 1, 8), 3).collect(_.mean).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isArray) { x } { x*2 }, dur: 0.22, amp: 0.06)
+}.play;
+)
+::
+
+SUBSECTION:: Moving median
+code::
+Pwindow(Pseq([1, 9, 3, 2, 8]), 3).collect { |w| w.sort[1] }.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pwindow / Moving median
+var values = {
+Pwindow(Pseq([1, 9, 3, 2, 8]), 3).collect { |w| w.sort[1] }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isArray) { x } { x*2 }, dur: 0.22, amp: 0.06)
+}.play;
+)
+::
+
+SUBSECTION:: Moving variance
+code::
+Pwindow(Pseries(1, 1, 8), 3).collect { |w| (w - w.mean).squared.mean }.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pwindow / Moving variance
+var values = {
+Pwindow(Pseries(1, 1, 8), 3).collect { |w| (w - w.mean).squared.mean }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isArray) { x } { x*2 }, dur: 0.22, amp: 0.06)
+}.play;
+)
+::
+
+SUBSECTION:: Moving symbolic entropy
+code::
+Pwindow(Pseq([\a, \a, \b, \a, \c, \c]), 3).collect { |w|
+    w.as(Set).asArray.collect { |x|
+        var p = w.count { |v| v == x } / w.size;
+        p * p.log2.neg
+    }.sum
+}.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pwindow / Moving symbolic entropy
+var values = {
+Pwindow(Pseq([\a, \a, \b, \a, \c, \c]), 3).collect { |w|
+    w.as(Set).asArray.collect { |x|
+        var p = w.count { |v| v == x } / w.size;
+        p * p.log2.neg
+    }.sum
+}.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isArray) { x } { x*2 }, dur: 0.22, amp: 0.06)
+}.play;
+)
+::
+
+SUBSECTION:: N-grams
+code::
+Pwindow(Pseq([\a, \b, \a, \c, \b]), 2).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pwindow / N-grams
+var values = {
+Pwindow(Pseq([\a, \b, \a, \c, \b]), 2).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: x.collect { |s| tones[s] ? 0 }, dur: 0.25, amp: 0.05)
+}.play;
+)
+::
+
+SUBSECTION:: Melodic intervals
+code::
+Pwindow(Pseq([0, 2, 5, 4, 7]), 2).collect { |w| w[1] - w[0] }.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pwindow / Melodic intervals
+var values = {
+Pwindow(Pseq([0, 2, 5, 4, 7]), 2).collect { |w| w[1] - w[0] }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isArray) { x } { x*2 }, dur: 0.22, amp: 0.06)
+}.play;
+)
+::
+
+SUBSECTION:: Weighted convolution
+code::
+Pwindow(Pseq([1, 0, 0, 1, 0, 0]), 3).collect { |w| (w * [0.25, 0.5, 0.25]).sum }.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pwindow / Weighted convolution
+var values = {
+Pwindow(Pseq([1, 0, 0, 1, 0, 0]), 3).collect { |w| (w * [0.25, 0.5, 0.25]).sum }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isArray) { x } { x*2 }, dur: 0.22, amp: 0.06)
+}.play;
+)
+::
+
+SUBSECTION:: Motif detection
+code::
+Pwindow(Pseq([0, 2, 4, 0, 2, 4]), 3).collect { |w| w == [0, 2, 4] }.asStream.all;
+::
+
+A detected feature triggers a note; other windows become rests. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pwindow / Motif detection
+var values = {
+Pwindow(Pseq([0, 2, 4, 0, 2, 4]), 3).collect { |w| w == [0, 2, 4] }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: 7, type: if(x) { \note } { \rest }, dur: 0.2, amp: 0.1)
+}.play;
+)
+::
+
+SUBSECTION:: Peak detection
+code::
+Pwindow(Pseq([0, 1, 0, 2, 1]), 3).collect { |w| (w[1] > w[0]) and: { w[1] > w[2] } }.asStream.all;
+::
+
+A detected feature triggers a note; other windows become rests. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pwindow / Peak detection
+var values = {
+Pwindow(Pseq([0, 1, 0, 2, 1]), 3).collect { |w| (w[1] > w[0]) and: { w[1] > w[2] } }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: 7, type: if(x) { \note } { \rest }, dur: 0.2, amp: 0.1)
+}.play;
+)
+::
+
+SUBSECTION:: Zero crossings
+code::
+Pwindow(Pseq([-1, -0.5, 1, 0.5, -1]), 2).collect { |w| (w[0] * w[1]) < 0 }.asStream.all;
+::
+
+A detected feature triggers a note; other windows become rests. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pwindow / Zero crossings
+var values = {
+Pwindow(Pseq([-1, -0.5, 1, 0.5, -1]), 2).collect { |w| (w[0] * w[1]) < 0 }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: 7, type: if(x) { \note } { \rest }, dur: 0.2, amp: 0.1)
+}.play;
+)
+::
+
+SUBSECTION:: Direction changes
+code::
+Pwindow(Pseq([0, 1, 2, 1, 0, 2]), 3).collect { |w| ((w[1] - w[0]) * (w[2] - w[1])) < 0 }.asStream.all;
+::
+
+A detected feature triggers a note; other windows become rests. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pwindow / Direction changes
+var values = {
+Pwindow(Pseq([0, 1, 2, 1, 0, 2]), 3).collect { |w| ((w[1] - w[0]) * (w[2] - w[1])) < 0 }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: 7, type: if(x) { \note } { \rest }, dur: 0.2, amp: 0.1)
+}.play;
+)
+::
+
+SUBSECTION:: Local normalization
+code::
+Pwindow(Pseq([1, 2, 4, 4, 2]), 3).collect { |w| (w.last - w.minItem) / (w.maxItem - w.minItem).max(0.001) }.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pwindow / Local normalization
+var values = {
+Pwindow(Pseq([1, 2, 4, 4, 2]), 3).collect { |w| (w.last - w.minItem) / (w.maxItem - w.minItem).max(0.001) }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: 0, cutoff: x.linexp(0,1,300,6000), dur: 0.2, amp: 0.07)
+}.play;
+)
+::
+
+SUBSECTION:: Training contexts
+code::
+Pwindow(Pseq([\a, \b, \a, \c, \b, \a]), 3).collect { |w|
+    (context: w.copyRange(0, 1), next: w[2])
+}.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pwindow / Training contexts
+var values = {
+Pwindow(Pseq([\a, \b, \a, \c, \b, \a]), 3).collect { |w|
+    (context: w.copyRange(0, 1), next: w[2])
+}.asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: (x[\context] ++ [x[\next]]).collect { |s| tones[s] ? 0 }, dur: 0.3, amp: 0.045)
+}.play;
+)
+::

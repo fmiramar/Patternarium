@@ -1,0 +1,55 @@
+TITLE:: Patternarium Sequences
+SUMMARY:: Local coverage, state traversal and mathematical sequences
+CATEGORIES:: Libraries>Patternarium
+RELATED:: Guides/Patternarium, Classes/PdeBruijn, Classes/PgrayCode, Classes/Pqmc, Classes/ProtationWord, Classes/PnumSeq
+
+DESCRIPTION::
+Choose De Bruijn order for exhaustive local words, Gray code for single-coordinate state changes, QMC for unit-cube coverage, rotation words for circle codings, and PnumSeq for a fixed set of named recurrences. These are different ordering structures; none requires an audio server.
+code::
+Pwindow(PdeBruijn([0, 1], 3, 2), 3).asStream.nextN(8);
+Pwindow(PgrayCode([2, 3]), 2).collect { |w| w[1] - w[0] }.asStream.all;
+Pqmc(2, length: 8).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Patternarium-Sequences / Value stream
+var values = {
+Pwindow(PdeBruijn([0, 1], 3, 2), 3).asStream.nextN(8);
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isArray) { x } { x*2 }, dur: 0.22, amp: 0.06)
+}.play;
+)
+::
+
+Coordinates become chord voices and timbral steps, exposing gradual state changes. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Patternarium-Sequences / Value stream
+var values = {
+Pwindow(PgrayCode([2, 3]), 2).collect { |w| w[1] - w[0] }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: x, cutoff: 500*(x[0]+1), dur: 0.25, amp: 0.035)
+}.play;
+)
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Patternarium-Sequences / Value stream
+var values = {
+Pqmc(2, length: 8).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isArray) { x[0]*14 } { x }, pan: if(x.isArray) { x[1]*2-1 } { 0 }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+For musical examples, evaluate the four instruments in link::Guides/Patternarium#Example instruments:: and visit the individual class Help.

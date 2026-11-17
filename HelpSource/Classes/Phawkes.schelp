@@ -1,0 +1,209 @@
+TITLE:: Phawkes
+SUMMARY:: Exponential-kernel self-exciting arrival processes
+CATEGORIES:: Streams-Patterns-Events>Patterns>Patternarium
+RELATED:: Classes/PpointProcess, Classes/Prenewal, Guides/Patternarium-Processes, Classes/Pseed
+
+DESCRIPTION::
+Simulates a linear Hawkes process with nonnegative excitation using adaptive Ogata thinning. Every stream starts with empty excitation history at start. Recipient i has intensity baseRate[i] plus the sum of interactionMatrix[i][j] times exp(-decay[i] times elapsed time) for past events in source dimension j. Matrix rows are recipients and columns are sources. The default scalar process has one dimension; without a matrix, larger dimensions use independent diagonal excitation.
+
+Event output contains time, delta, dimension, intensity and totalIntensity. Intensity is the selected dimension's conditional intensity immediately before its accepted event; totalIntensity is the corresponding total across dimensions. Delta spans all rejected proposals since the previous accepted arrival. Time and delta output modes return only that field. A zero-total baseline with empty history emits nothing.
+
+The integrated kernel is K[i][j] = interactionMatrix[i][j] / decay[i]. A conservative upper bound on its spectral radius must be below 1 - 1e-10, unless allowUnstable is true. The implementation uses a row-sum bound, then a positive-vector Collatz bound from solving (I-K)x=1; it handles reducible matrices without assuming a positive dominant eigenvector. Near-critical or ill-conditioned stable inputs may be rejected conservatively.
+
+The total intensity is capped both initially and immediately after every event, including the final requested event. The event that would exceed maxIntensity is not yielded. More than 100000 thinning proposals before the next accepted event throws. Dimensions are limited to 64, and arrival indices are guarded before signed Integer overflow. AllowUnstable does not disable intensity, finite-time or proposal guards. Inhibition is unsupported. State storage is O(dimensions squared); each proposal is O(dimensions), after an O(dimensions cubed) worst-case stability check. Random choices use the sclang thread RNG and are reproducible under Pseed.
+
+CLASSMETHODS::
+METHOD:: new
+ARGUMENT:: baseRate
+Nonnegative finite scalar or per-dimension collection; evaluated once, default 1.
+ARGUMENT:: excitation
+Nonnegative scalar jump, evaluated once when no matrix is supplied, default 0.5.
+ARGUMENT:: decay
+Strictly positive finite scalar or per-recipient collection, evaluated once, default 1.
+ARGUMENT:: dimensions
+Positive Integer, evaluated once when no matrix is supplied, default 1. At most 64.
+ARGUMENT:: interactionMatrix
+Optional literal nonempty square nonnegative matrix. Determines dimensions and replaces excitation; copied per stream.
+ARGUMENT:: start
+Finite time origin, default 0; sampled once.
+ARGUMENT:: length
+Nonnegative Integer or inf, default inf; sampled once.
+ARGUMENT:: output
+event (default), time or delta; sampled once.
+ARGUMENT:: allowUnstable
+Boolean, default false; sampled once.
+ARGUMENT:: maxIntensity
+Positive finite total-intensity cap, default 100000; sampled once. Scalar parameters accept literal values, Functions or Patterns sampled once. Collections are literal or Function-returned values.
+
+INSTANCEMETHODS::
+METHOD:: storeArgs
+Returns constructor arguments in public constructor order.
+METHOD:: embedInStream
+Runs the stream, yielding values and returning the latest inval at termination.
+
+EXAMPLES::
+code::
+Pseed(Pseq([42]), Phawkes(length: 8)).asStream.all;
+::
+
+Waiting times drive note spacing at half scale; process dimensions select pitches. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Phawkes / Value stream
+var values = {
+Pseed(Pseq([42]), Phawkes(length: 8)).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isKindOf(Dictionary)) { (x[\dimension] ? x[\channel] ? 0)*7 } { 0 }, dur: if(x.isKindOf(Dictionary)) { (x[\delta] ? 0.25)*0.5 } { if(x.isArray) { x[0]*0.5 } { x*0.5 } }, amp: 0.09)
+}.play;
+)
+::
+
+SUBSECTION:: Musical example
+Load the example instruments in link::Guides/Patternarium#Example instruments:: first.
+code::
+(
+Pbind(\instrument, \mallet, \degree, 0,
+    \dur, Pseed(Pseq([42]), Phawkes(2, 0.6, 2, length: 32, output: \delta))).play;
+)
+::
+
+SUBSECTION:: Aftershock-like clustering
+code::
+Pseed(Pseq([42]), Phawkes(0.4, 0.8, 1.2, length: 24)).asStream.all;
+::
+
+Waiting times drive note spacing at half scale; process dimensions select pitches. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Phawkes / Aftershock-like clustering
+var values = {
+Pseed(Pseq([42]), Phawkes(0.4, 0.8, 1.2, length: 24)).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isKindOf(Dictionary)) { (x[\dimension] ? x[\channel] ? 0)*7 } { 0 }, dur: if(x.isKindOf(Dictionary)) { (x[\delta] ? 0.25)*0.5 } { if(x.isArray) { x[0]*0.5 } { x*0.5 } }, amp: 0.09)
+}.play;
+)
+::
+
+SUBSECTION:: Echo-like rhythmic proliferation
+code::
+Pseed(Pseq([42]), Phawkes(2, 1.2, 2, length: 24, output: \delta)).asStream.all;
+::
+
+Waiting times drive note spacing at half scale; process dimensions select pitches. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Phawkes / Echo-like rhythmic proliferation
+var values = {
+Pseed(Pseq([42]), Phawkes(2, 1.2, 2, length: 24, output: \delta)).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isKindOf(Dictionary)) { (x[\dimension] ? x[\channel] ? 0)*7 } { 0 }, dur: if(x.isKindOf(Dictionary)) { (x[\delta] ? 0.25)*0.5 } { if(x.isArray) { x[0]*0.5 } { x*0.5 } }, amp: 0.09)
+}.play;
+)
+::
+
+SUBSECTION:: Two-voice call and response
+code::
+Pseed(Pseq([42]), Phawkes([1, 0.1], decay: 2,
+    interactionMatrix: [[0, 0.2], [1.2, 0]], length: 24)).asStream.all;
+::
+
+Waiting times drive note spacing at half scale; process dimensions select pitches. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Phawkes / Two-voice call and response
+var values = {
+Pseed(Pseq([42]), Phawkes([1, 0.1], decay: 2,
+    interactionMatrix: [[0, 0.2], [1.2, 0]], length: 24)).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isKindOf(Dictionary)) { (x[\dimension] ? x[\channel] ? 0)*7 } { 0 }, dur: if(x.isKindOf(Dictionary)) { (x[\delta] ? 0.25)*0.5 } { if(x.isArray) { x[0]*0.5 } { x*0.5 } }, amp: 0.09)
+}.play;
+)
+::
+
+SUBSECTION:: Inspecting cross-excitation before playback
+code::
+(
+var matrix = [[0.1, 0.4], [0.7, 0.1]];
+matrix.postln;
+Pbind(\instrument, \saw,
+    \arrival, Pseed(Pseq([42]), Phawkes([1, 0.3], decay: 2, interactionMatrix: matrix, length: 24)),
+    \degree, Pfunc { |e| [0, 7][e[\arrival][\dimension]] },
+    \dur, Pfunc { |e| e[\arrival][\delta] }
+).play;
+)
+::
+
+SUBSECTION:: Local acceleration after events
+code::
+Pseed(Pseq([42]), Phawkes(1, 0.8, 1.5, length: 16)).collect { |e|
+    [e[\delta], e[\intensity]]
+}.asStream.all;
+::
+
+Waiting times drive note spacing at half scale; process dimensions select pitches. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Phawkes / Local acceleration after events
+var values = {
+Pseed(Pseq([42]), Phawkes(1, 0.8, 1.5, length: 16)).collect { |e|
+    [e[\delta], e[\intensity]]
+}.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isKindOf(Dictionary)) { (x[\dimension] ? x[\channel] ? 0)*7 } { 0 }, dur: if(x.isKindOf(Dictionary)) { (x[\delta] ? 0.25)*0.5 } { if(x.isArray) { x[0]*0.5 } { x*0.5 } }, amp: 0.09)
+}.play;
+)
+::
+
+SUBSECTION:: Bursts and sparse regions
+code::
+Pseed(Pseq([42]), Phawkes(0.1, 1.8, 2, length: 32, output: \time)).asStream.all;
+::
+
+Waiting times drive note spacing at half scale; process dimensions select pitches. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Phawkes / Bursts and sparse regions
+var values = {
+Pseed(Pseq([42]), Phawkes(0.1, 1.8, 2, length: 32, output: \time)).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+values = values.differentiate;
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isKindOf(Dictionary)) { (x[\dimension] ? x[\channel] ? 0)*7 } { 0 }, dur: if(x.isKindOf(Dictionary)) { (x[\delta] ? 0.25)*0.5 } { if(x.isArray) { x[0]*0.5 } { x*0.5 } }, amp: 0.09)
+}.play;
+)
+::
+
+SUBSECTION:: Cross-channel triggering
+code::
+Pseed(Pseq([42]), Phawkes([1, 0, 0], decay: 2,
+    interactionMatrix: [[0, 0, 0], [0.8, 0, 0], [0, 0.8, 0]], length: 24
+)).collect { |e| (time: e[\time], channel: e[\dimension]) }.asStream.all;
+::
+
+Waiting times drive note spacing at half scale; process dimensions select pitches. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Phawkes / Cross-channel triggering
+var values = {
+Pseed(Pseq([42]), Phawkes([1, 0, 0], decay: 2,
+    interactionMatrix: [[0, 0, 0], [0.8, 0, 0], [0, 0.8, 0]], length: 24
+)).collect { |e| (time: e[\time], channel: e[\dimension]) }.asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isKindOf(Dictionary)) { (x[\dimension] ? x[\channel] ? 0)*7 } { 0 }, dur: if(x.isKindOf(Dictionary)) { (x[\delta] ? 0.25)*0.5 } { if(x.isArray) { x[0]*0.5 } { x*0.5 } }, amp: 0.09)
+}.play;
+)
+::

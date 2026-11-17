@@ -1,0 +1,37 @@
+TITLE:: Patternarium Protocols
+SUMMARY:: Input values, state ownership and transition results
+CATEGORIES:: Libraries>Patternarium
+RELATED:: Classes/Pscan, Classes/Ptransduce, Classes/Pmorphism
+
+DESCRIPTION::
+Input streams receive the latest inval. After each yield, the returned value becomes the new inval. Finishing embedInStream returns that latest value. Bare nil terminates a stream.
+
+SECTION:: Once-evaluated parameters
+Lengths, window dimensions, rewrite generation count, mode, flags and bounds accept literal values, Functions called with inval, or Patterns sampled once through a fresh stream. An exhausted parameter Pattern is invalid. Initial states in Pscan and Ptransduce use value(inval); pass a Function to allocate mutable state, rather than a Pattern. Sources are streamed with next(inval).
+
+SECTION:: Transducer step
+A Function returns an Event with state, emit and optional stop keys. State is required except when stop is true. Emit is nil or a SequenceableCollection containing no nil items. Empty emit consumes without yielding; nested Arrays emit Arrays as individual values. Stop emits its collection before returning. Returning nil stops immediately. Only natural source termination calls flush, once.
+code::
+Ptransduce(Pseq([1, 2, 3]), 0, { |s, x|
+    (state: s + x, emit: if(x.odd) { [x, x + 12] } { [] })
+}).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Patternarium-Protocols / Transducer step
+var values = {
+Ptransduce(Pseq([1, 2, 3]), 0, { |s, x|
+    (state: s + x, emit: if(x.odd) { [x, x + 12] } { [] })
+}).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: x*3, dur: 0.16, amp: 0.09)
+}.play;
+)
+::
+
+SECTION:: Ownership
+Iteration state is local to each stream, but caller-supplied mutable objects are not deep-copied. Window Arrays and generation Arrays are fresh shallow containers. Their contained objects retain identity. Mutating objects inside outputs can therefore affect caller state.

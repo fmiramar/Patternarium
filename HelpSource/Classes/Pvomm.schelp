@@ -1,0 +1,208 @@
+TITLE:: Pvomm
+SUMMARY:: Experimental PPM-C variable-order generation
+CATEGORIES:: Streams-Patterns-Events>Patterns>Patternarium
+RELATED:: Classes/PgraphWalk, Classes/Pseed, Guides/Patternarium-Systems
+
+DESCRIPTION::
+Experimental: this API may change before 1.0.
+
+Trains suffix-context counts independently for each stream. Generation begins at the longest available suffix of the start context and backs off through shorter contexts. At an eligible context, PPM-C gives each symbol count/(totalCount+typeCount), with escape probability typeCount/(totalCount+typeCount). ExcludeSeen removes already considered symbols from lower-order counts.
+
+This generator uses the closed observed alphabet: no unobserved symbols are invented. If an eligible context covers every remaining symbol, escape is suppressed and its counts are normalized directly, since escape would have no destination. This finite-alphabet boundary rule is distinct from compressing an unknown byte alphabet. Escapes remain possible even from a context with only one observed continuation when other symbols remain.
+
+A corpus whose elements are all SequenceableCollections is interpreted as separate sequences. Otherwise it is one sequence. Empty subsequences are permitted, but at least one symbol is required. Contexts never cross training sequence boundaries. Array-valued symbols can be represented inside an explicitly nested single-sequence corpus. Nil symbols are invalid. Symbol objects retain identity; use stable, immutable objects as context keys.
+
+Learning updates only the current stream's model after selecting each symbol. Its tables can grow substantially over a long stream; no global trained model is shared. MaxOrder is at most 64 and training accepts at most 1000000 symbols. Training stores suffix keys and counts; key-copy work can be O(corpus length times maxOrder squared). Sampling scans the observed alphabet for each available order. Learning memory depends on the distinct observed contexts. Output indices have an explicit machine-Integer guard. Seed and numerical calculations use sclang's thread RNG and Pseed.
+
+CLASSMETHODS::
+METHOD:: new
+ARGUMENT:: corpus
+Literal nonempty SequenceableCollection or collection of separate sequences; no model is shared between streams.
+ARGUMENT:: maxOrder
+Nonnegative Integer, default 8, at most 64; sampled once.
+ARGUMENT:: length
+Nonnegative Integer or inf, default inf; sampled once.
+ARGUMENT:: start
+Nil, a symbol, or a context collection; a Function is evaluated once with inval. The context is truncated to maxOrder.
+ARGUMENT:: learning
+Boolean, default false; sampled once.
+ARGUMENT:: excludeSeen
+Boolean, default true; sampled once. Once-sampled flags/counts accept literals, Functions or Patterns.
+
+INSTANCEMETHODS::
+METHOD:: storeArgs
+Returns constructor arguments in public constructor order.
+METHOD:: embedInStream
+Yields values and returns the latest inval when the stream ends.
+
+EXAMPLES::
+code::
+Pseed(Pseq([42]), Pvomm([0, 2, 0, 4, 0, 2], length: 16)).asStream.all;
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pvomm / Value stream
+var values = {
+Pseed(Pseq([42]), Pvomm([0, 2, 0, 4, 0, 2], length: 16)).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Musical example
+Load the main Guide example instruments first.
+code::
+(
+Pbind(\instrument, \fmPiano,
+    \degree, Pseed(Pseq([42]), Pvomm([0, 2, 4, 2, 0, 7, 4, 2], 3, 32)),
+    \dur, 0.125).play;
+)
+::
+
+SUBSECTION:: Informative long contexts
+code::
+Pseed(Pseq([42]), Pvomm([\a, \b, \x, \a, \c, \y, \a, \b, \x], 2, 16, [\a, \b])).asStream.all;
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pvomm / Informative long contexts
+var values = {
+Pseed(Pseq([42]), Pvomm([\a, \b, \x, \a, \c, \y, \a, \b, \x], 2, 16, [\a, \b])).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Sparse context fallback
+code::
+Pseed(Pseq([42]), Pvomm([\a, \b, \a, \c], 4, 12, [\unknown, \a])).asStream.all;
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pvomm / Sparse context fallback
+var values = {
+Pseed(Pseq([42]), Pvomm([\a, \b, \a, \c], 4, 12, [\unknown, \a])).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Learning recurring phrases from a corpus
+code::
+Pseed(Pseq([42]), Pvomm([\a, \b, \c, \a, \b, \c, \a, \b, \c], 3, 18)).asStream.all;
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pvomm / Learning recurring phrases from a corpus
+var values = {
+Pseed(Pseq([42]), Pvomm([\a, \b, \c, \a, \b, \c, \a, \b, \c], 3, 18)).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Online learning from generated output
+code::
+[false, true].collect { |learn|
+    Pseed(Pseq([42]), Pvomm([0, 1, 0, 2], 2, 24, learning: learn)).asStream.all
+};
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pvomm / Online learning from generated output
+var values = {
+[false, true].collect { |learn|
+    Pseed(Pseq([42]), Pvomm([0, 1, 0, 2], 2, 24, learning: learn)).asStream.all
+};
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+values = values.flatten(1);
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Repetition and variation versus a fixed-order graph
+code::
+[
+    Pseed(Pseq([42]), PgraphWalk((a: [\b, \c], b: [\a], c: [\a]), \a, 16)).asStream.all,
+    Pseed(Pseq([42]), Pvomm([\a, \b, \a, \c, \a, \b, \a], 3, 16, \a)).asStream.all
+];
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pvomm / Repetition and variation versus a fixed-order graph
+var values = {
+[
+    Pseed(Pseq([42]), PgraphWalk((a: [\b, \c], b: [\a], c: [\a]), \a, 16)).asStream.all,
+    Pseed(Pseq([42]), Pvomm([\a, \b, \a, \c, \a, \b, \a], 3, 16, \a)).asStream.all
+];
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+values = values.flatten(1);
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Separate training sequences
+code::
+// Internal diagnostic: no b->c transition is learned at the boundary.
+PTRVommModel([[\a, \b], [\c, \d]], 2).countsFor([\b]);
+Pseed(Pseq([42]), Pvomm([[\a, \b], [\c, \d]], 2, 16)).asStream.all;
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pvomm / Separate training sequences
+var values = {
+// Internal diagnostic: no b->c transition is learned at the boundary.
+PTRVommModel([[\a, \b], [\c, \d]], 2).countsFor([\b]);
+Pseed(Pseq([42]), Pvomm([[\a, \b], [\c, \d]], 2, 16)).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Inspecting tiny PPM-C probabilities
+code::
+// Internal diagnostic: a -> 0.5, b -> 0.25, c -> 0.25.
+PTRVommModel([\a, \b, \a, \c], 1).distribution([\a], true);
+::

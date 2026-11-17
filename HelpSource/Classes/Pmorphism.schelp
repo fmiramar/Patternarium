@@ -1,0 +1,188 @@
+TITLE:: Pmorphism
+SUMMARY:: Bounded parallel symbolic rewriting
+CATEGORIES:: Streams-Patterns-Events>Patterns>Patternarium
+RELATED:: Classes/Prewrite, Classes/Ptransduce, Classes/Pseed
+
+DESCRIPTION::
+Each generation is rewritten in parallel using only neighbors from the previous generation. Functions receive symbol, left, right, one-based target generation, zero-based index and inval. Boundary neighbors are nil. Missing rules preserve symbols. Scalar replacements produce one symbol, collections are spliced one level, empty collections delete, and nil is invalid. Pattern replacements use a new stream per application, read with the current inval, bounded by maxSymbols. Seed Patterns are read as one finite initial generation. Outputs are shallow Arrays or individual values; caller collections are not modified. Memory is O(maxSymbols). An empty symbol-output generation terminates immediately because it cannot grow again. Literal and Function initial states are shared objects unless explicitly copied by the caller.
+
+CLASSMETHODS::
+METHOD:: new
+ARGUMENT:: seed
+Scalar, SequenceableCollection or finite Pattern, collected once at stream start.
+ARGUMENT:: rules
+Dictionary or Event, read for each symbol. Values are scalars, collections, Functions or finite Patterns.
+ARGUMENT:: generations
+Nonnegative Integer or inf; evaluated once. Zero produces only an optionally included seed.
+ARGUMENT:: output
+symbols (default) or generations, evaluated once. Symbols streams each selected generation; generations yields fresh shallow Arrays.
+ARGUMENT:: includeSeed
+Boolean, default false; evaluated once.
+ARGUMENT:: maxSymbols
+Positive Integer evaluated once, effective default 100000. For infinite generations it must be supplied explicitly; omission is stored as nil to distinguish it. Overflow throws an Error. Any replacement must terminate within the bound.
+
+INSTANCEMETHODS::
+METHOD:: storeArgs
+Returns the constructor arguments for archive reconstruction.
+METHOD:: embedInStream
+Runs the stream protocol and returns the latest inval on termination.
+
+EXAMPLES::
+code::
+Pmorphism([\a], (a: [\a, \b], b: [\a]), 4, \generations, true).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pmorphism / Value stream
+var values = {
+Pmorphism([\a], (a: [\a, \b], b: [\a]), 4, \generations, true).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+values = values.flatten(1);
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isNumber) { x } { tones[x] ? 0 }, dur: 0.15, amp: 0.08)
+}.play;
+)
+::
+
+SECTION:: Musical example
+Load the example instruments in link::Guides/Patternarium#Example instruments:: first, then evaluate this block.
+code::
+(
+Pbind(\instrument, \fmPiano, \degree, Pmorphism([0], Dictionary[0 -> [0, 2], 2 -> [3, 0]], 5), \dur, 0.125).play;
+)
+::
+
+SUBSECTION:: Formal growth
+code::
+Pmorphism([\a], (a: [\a, \b], b: [\a]), 5, \generations, true).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pmorphism / Formal growth
+var values = {
+Pmorphism([\a], (a: [\a, \b], b: [\a]), 5, \generations, true).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+values = values.flatten(1);
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isNumber) { x } { tones[x] ? 0 }, dur: 0.15, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Ornament proliferation
+code::
+Pmorphism([0], Dictionary[0 -> [0, 1, 0], 1 -> [1, 2]], 3).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pmorphism / Ornament proliferation
+var values = {
+Pmorphism([0], Dictionary[0 -> [0, 1, 0], 1 -> [1, 2]], 3).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+values = values.flatten(1);
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isNumber) { x } { tones[x] ? 0 }, dur: 0.15, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Self-similar rhythm
+code::
+Pmorphism([1], Dictionary[1 -> [1, 0.5, 0.5], 0.5 -> [0.25, 0.25]], 3).asStream.all;
+::
+
+Rewritten lengths become note durations. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pmorphism / Self-similar rhythm
+var values = {
+Pmorphism([1], Dictionary[1 -> [1, 0.5, 0.5], 0.5 -> [0.25, 0.25]], 3).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+values = values.flatten(1);
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: 0, dur: x*0.25, amp: 0.1)
+}.play;
+)
+::
+
+SUBSECTION:: Context-sensitive phrase mutation
+code::
+Pmorphism([0, 2, 0], Dictionary[2 -> { |symbol, left, right|
+    if(left == right) { [symbol, symbol + 1] } { symbol }
+}], 2, \generations, true).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pmorphism / Context-sensitive phrase mutation
+var values = {
+Pmorphism([0, 2, 0], Dictionary[2 -> { |symbol, left, right|
+    if(left == right) { [symbol, symbol + 1] } { symbol }
+}], 2, \generations, true).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+values = values.flatten(1);
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isNumber) { x } { tones[x] ? 0 }, dur: 0.15, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Evolving orchestration
+code::
+Pmorphism([\saw], (saw: [\saw, \mallet], mallet: [\fmPiano], fmPiano: [\farfisa]), 3, \generations, true).asStream.all;
+::
+
+Rewritten instrument symbols choose the actual sound source. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pmorphism / Evolving orchestration
+var values = {
+Pmorphism([\saw], (saw: [\saw, \mallet], mallet: [\fmPiano], fmPiano: [\farfisa]), 3, \generations, true).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+values = values.flatten(1);
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: x, degree: 0, dur: 0.2, amp: 0.07)
+}.play;
+)
+::
+
+SUBSECTION:: Symbolic synthesis controls and Pattern replacement
+code::
+Pmorphism([\soft], (soft: Pseq([\soft, \bright]), bright: [\soft]), 4).collect { |symbol|
+    if(symbol == \soft) { (cutoff: 800, amp: 0.08) } { (cutoff: 4000, amp: 0.12) }
+}.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pmorphism / Symbolic synthesis controls and Pattern replacement
+var values = {
+Pmorphism([\soft], (soft: Pseq([\soft, \bright]), bright: [\soft]), 4).collect { |symbol|
+    if(symbol == \soft) { (cutoff: 800, amp: 0.08) } { (cutoff: 4000, amp: 0.12) }
+}.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+values = values.flatten(1);
+Pseq(values, 4).keep(64).collect { |x|
+    x.copy.putAll((instrument: \saw, degree: 0, dur: 0.2))
+}.play;
+)
+::

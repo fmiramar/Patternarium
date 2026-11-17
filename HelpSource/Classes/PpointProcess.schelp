@@ -1,0 +1,33 @@
+TITLE:: PpointProcess
+SUMMARY:: Abstract base for positive-interval temporal processes
+CATEGORIES:: Streams-Patterns-Events>Patterns>Patternarium
+RELATED:: Classes/Prenewal, Classes/Phawkes, Guides/Patternarium-Processes
+
+DESCRIPTION::
+The base centralizes finite start time, output-count validation, strictly increasing time and output conversion. Instantiate Prenewal or Phawkes; PpointProcess.new throws because there is no general sampler in this base.
+
+Start is a finite time origin, including negative origins when useful. Delta is the positive interval preceding each emitted arrival; time is its absolute arrival time. Event output contains time and delta; subclasses may add fields. A process begins with empty history at start and does not emit start as an arrival. Length counts arrivals. Time overflow or failure to advance at floating-point precision raises an Error. Numerical generation requires no server.
+
+CLASSMETHODS::
+METHOD:: new
+Abstract; use a concrete subclass.
+
+EXAMPLES::
+code::
+Prenewal(Pseq([0.25, 0.5, 0.125]), start: 2, output: \event).asStream.all;
+::
+
+Waiting times drive note spacing at half scale; process dimensions select pitches. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PpointProcess / Value stream
+var values = {
+Prenewal(Pseq([0.25, 0.5, 0.125]), start: 2, output: \event).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isKindOf(Dictionary)) { (x[\dimension] ? x[\channel] ? 0)*7 } { 0 }, dur: if(x.isKindOf(Dictionary)) { (x[\delta] ? 0.25)*0.5 } { if(x.isArray) { x[0]*0.5 } { x*0.5 } }, amp: 0.09)
+}.play;
+)
+::
+See link::Guides/Patternarium-Processes:: for exponential, gamma, Weibull and refractory-like timing examples.

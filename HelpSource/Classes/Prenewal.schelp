@@ -1,0 +1,55 @@
+TITLE:: Prenewal
+SUMMARY:: Arrival timing from a positive-interval stream
+CATEGORIES:: Streams-Patterns-Events>Patterns>Patternarium
+RELATED:: Classes/PpointProcess, Classes/Phawkes, Guides/Patternarium-Processes
+
+DESCRIPTION::
+Consumes strictly positive finite intervals and yields intervals, absolute arrival times, or fresh time/delta Events. The first arrival is start plus the first interval. Source exhaustion ends the process; length bounds arrivals, and zero length consumes nothing. The latest inval is passed to every source next call. Start, length and output are sampled once from a literal, Function or fresh parameter Pattern. Arrival indices are guarded before signed Integer overflow. No server is required. State is O(1), excluding the source.
+
+A distribution Pattern need not be identically distributed or independent, but calling a process a renewal process mathematically requires independent identically distributed intervals. Changing interval distributions is an explicit extension of the stream API; it does not automatically implement a non-homogeneous Poisson process. See the approximations in link::Guides/Patternarium-Processes::. Self-excitation is modeled in link::Classes/Phawkes::.
+
+CLASSMETHODS::
+METHOD:: new
+ARGUMENT:: distribution
+Pattern producing strictly positive finite intervals. Zero, negative, NaN and infinite values throw.
+ARGUMENT:: start
+Finite time origin, default 0; evaluated once.
+ARGUMENT:: length
+Nonnegative Integer or inf, default inf; evaluated once.
+ARGUMENT:: output
+delta (default), time or event; evaluated once.
+
+INSTANCEMETHODS::
+METHOD:: storeArgs
+Returns constructor arguments in public constructor order.
+METHOD:: embedInStream
+Runs the stream, yielding values and returning the latest inval at termination.
+
+EXAMPLES::
+code::
+Prenewal(Pseq([0.25, 0.5, 1]), output: \time).asStream.all;
+::
+
+Waiting times drive note spacing at half scale; process dimensions select pitches. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Prenewal / Value stream
+var values = {
+Prenewal(Pseq([0.25, 0.5, 1]), output: \time).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+values = values.differentiate;
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isKindOf(Dictionary)) { (x[\dimension] ? x[\channel] ? 0)*7 } { 0 }, dur: if(x.isKindOf(Dictionary)) { (x[\delta] ? 0.25)*0.5 } { if(x.isArray) { x[0]*0.5 } { x*0.5 } }, amp: 0.09)
+}.play;
+)
+::
+
+SUBSECTION:: Musical example
+Load the example instruments in link::Guides/Patternarium#Example instruments:: first.
+code::
+(
+Pbind(\instrument, \mallet, \degree, Pseq([0, 2, 4, 7], 4),
+    \dur, Prenewal(Pexprand(0.1, 0.5), length: 16)).play;
+)
+::

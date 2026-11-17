@@ -1,0 +1,22 @@
+# Release checklist
+
+- [x] Create Quark layout, metadata and license.
+- [x] Add four foundational implementations and deterministic tests.
+- [x] Add per-class Help and shared example instruments.
+- [x] Complete runtime class-name audit on the installed class set.
+- [ ] Complete independent API review and recheck names before publication.
+- [x] Supply author and repository URL metadata.
+- [x] Compile and pass the current suite on local SuperCollider 3.14.1.
+- [x] Implement and test the five mathematical-sequence Patterns.
+- [x] Implement and test point processes, finite constraints and graph traversal.
+- [x] Render current Help and execute examples without audio.
+- [ ] Pass tests on compatible develop, Linux, macOS and Windows.
+- [x] Owner audio review accepted for now; no automated audio checks planned.
+- [x] Replace Pwindow array shifting with indexed ring buffering and regression coverage.
+- [ ] Finish the broader independent-stream, resource-use and growth-limit audit.
+- [x] Add and execute small finite numerical benchmarks.
+- [ ] Benchmark representative application workloads and audit peak memory.
+- [x] Implement and locally test all five milestone-4 experimental systems.
+- [ ] Complete stabilization before considering v1.0; experimental APIs need independent review.
+- [ ] Review constructor signatures, errors, provenance, and license notices.
+- [ ] Publish release only after all corresponding milestone gates pass.

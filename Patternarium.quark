@@ -1,0 +1,10 @@
+(
+    name: "Patternarium",
+    author: "Fellipe Miranda Martins",
+    url: "https://github.com/fmiramar/Patternarium",
+    summary: "Stateful, mathematical, stochastic and structural Patterns for SuperCollider.",
+    version: "0.4.0-dev",
+    schelp: "Guides/Patternarium",
+    license: "GPL-3.0-or-later",
+    dependencies: []
+)

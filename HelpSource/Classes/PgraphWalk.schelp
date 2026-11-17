@@ -1,0 +1,236 @@
+TITLE:: PgraphWalk
+SUMMARY:: Weighted and history-aware graph traversal
+CATEGORIES:: Streams-Patterns-Events>Patterns>Patternarium
+RELATED:: Classes/Pconstraint, Classes/Pwalk, Classes/Pfsm, Classes/Pseed
+
+DESCRIPTION::
+Normalizes a Dictionary or Event graph into stream-local edges. Adjacency collections contain scalar destinations, [destination, weight] pairs, or Events with to, weight and optional data. Missing weights default to 1. Weights must be finite and nonnegative. Array or Dictionary nodes must be wrapped in a to Event to disambiguate them from edge specifications. Destinations without explicit adjacency become terminal nodes. Start must be a known explicit or destination node.
+
+Uniform chooses every allowed outgoing edge equally, including zero-weight edges. Other strategies sample proportional to positive effective weights. NonBacktracking excludes the previous node when alternatives exist. Memory excludes the last memory nodes when alternatives remain after the strategy filter; it is a soft exclusion. SelfAvoiding excludes all visited nodes, including the start, as a hard edge restriction. Reinforced adds reinforcement to the selected directed edge after traversal; each parallel edge has its own weight.
+
+Taboo restrictions are always hard. A taboo Function receives destination, current node, zero-based output index and latest inval. The resolved start is checked before emission. DeadEnd stop terminates, stay repeats the current node, and restart returns to the resolved start and resets visit/memory history while retaining reinforced weights. Explicit stay/restart policies can repeat nodes even in selfAvoiding mode. A taboo restart/stay destination stops the stream.
+
+Length counts all emitted nodes, including the optional start and synthetic dead-end steps. Step output is a fresh Event with from, to, weight, data, node and kind (start, edge, stay or restart); nil-valued fields read as nil. The initial step has nil from and zero weight. Synthetic steps have zero weight. Real edge weight is the effective weight used for that selection, before reinforcement. Metadata is deep-copied at normalization and again for step output; node objects retain identity.
+
+Iteration state is independent for each stream. Normalization and storage are O(vertices + edges), excluding metadata. Self-avoiding visits are bounded by the finite normalized node set. Recent memory is bounded by the requested memory and emitted steps. Candidate filtering and weighting cost O(outdegree times membership/callback work). Output indices are guarded before signed Integer overflow. No audio server is required.
+
+CLASSMETHODS::
+METHOD:: new
+ARGUMENT:: graph
+Literal Dictionary or Event mapping nodes to finite adjacency Collections.
+ARGUMENT:: start
+Node, Function or Pattern resolved once.
+ARGUMENT:: length
+Nonnegative Integer or inf, default inf; sampled once.
+ARGUMENT:: strategy
+weighted (default), uniform, nonBacktracking, selfAvoiding or reinforced; sampled once.
+ARGUMENT:: memory
+Nonnegative Integer, default 0; sampled once.
+ARGUMENT:: reinforcement
+Finite nonnegative amount, default 0; sampled once.
+ARGUMENT:: taboo
+Nil, Collection of forbidden nodes, or Boolean Function(destination, current, index, inval).
+ARGUMENT:: deadEnd
+stop (default), stay or restart; sampled once.
+ARGUMENT:: output
+node (default) or step; sampled once.
+ARGUMENT:: includeStart
+Boolean, default true; sampled once. Once-sampled parameters accept literals, Functions or Patterns.
+
+INSTANCEMETHODS::
+METHOD:: storeArgs
+Returns constructor arguments in public constructor order.
+METHOD:: embedInStream
+Runs the stream, yielding values and returning the latest inval at termination.
+
+EXAMPLES::
+code::
+PgraphWalk((a: [\b], b: [\c], c: []), \a).asStream.all;
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PgraphWalk / Value stream
+var values = {
+PgraphWalk((a: [\b], b: [\c], c: []), \a).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Musical example
+Load the example instruments in link::Guides/Patternarium#Example instruments:: first.
+code::
+(
+Pbind(\instrument, \saw,
+    \degree, Pseed(Pseq([42]), PgraphWalk(Dictionary[0 -> [2,4], 2 -> [0,5], 4 -> [0,7], 5 -> [2], 7 -> [0]], 0, 32)),
+    \dur, 0.25).play;
+)
+::
+
+SUBSECTION:: Harmonic transitions
+code::
+Pseed(Pseq([42]), PgraphWalk((tonic: [\subdominant, \dominant], subdominant: [\dominant], dominant: [\tonic]), \tonic, 16)).asStream.all;
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PgraphWalk / Harmonic transitions
+var values = {
+Pseed(Pseq([42]), PgraphWalk((tonic: [\subdominant, \dominant], subdominant: [\dominant], dominant: [\tonic]), \tonic, 16)).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Timbral states
+code::
+Pseed(Pseq([42]), PgraphWalk((dark: [\warm], warm: [\dark, \bright], bright: [\warm]), \dark, 16)).asStream.all;
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PgraphWalk / Timbral states
+var values = {
+Pseed(Pseq([42]), PgraphWalk((dark: [\warm], warm: [\dark, \bright], bright: [\warm]), \dark, 16)).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Spatial routing
+code::
+Pseed(Pseq([42]), PgraphWalk(Dictionary[0 -> [1,3], 1 -> [0,2], 2 -> [1,3], 3 -> [0,2]], 0, 16)).asStream.all;
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PgraphWalk / Spatial routing
+var values = {
+Pseed(Pseq([42]), PgraphWalk(Dictionary[0 -> [1,3], 1 -> [0,2], 2 -> [1,3], 3 -> [0,2]], 0, 16)).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Symbolic sample transitions
+code::
+Pseed(Pseq([42]), PgraphWalk((kick: [\hat, \snare], hat: [\kick], snare: [\hat]), \kick, 16)).asStream.all;
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PgraphWalk / Symbolic sample transitions
+var values = {
+Pseed(Pseq([42]), PgraphWalk((kick: [\hat, \snare], hat: [\kick], snare: [\hat]), \kick, 16)).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Nonlinear form
+code::
+Pseed(Pseq([42]), PgraphWalk((intro: [\verse], verse: [\chorus, \bridge], chorus: [\verse, \outro], bridge: [\chorus], outro: []), \intro, 12)).asStream.all;
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PgraphWalk / Nonlinear form
+var values = {
+Pseed(Pseq([42]), PgraphWalk((intro: [\verse], verse: [\chorus, \bridge], chorus: [\verse, \outro], bridge: [\chorus], outro: []), \intro, 12)).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Non-backtracking exploration
+code::
+Pseed(Pseq([42]), PgraphWalk((a: [\b, \c], b: [\a, \c], c: [\a, \b]), \a, 12, \nonBacktracking)).asStream.all;
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PgraphWalk / Non-backtracking exploration
+var values = {
+Pseed(Pseq([42]), PgraphWalk((a: [\b, \c], b: [\a, \c], c: [\a, \b]), \a, 12, \nonBacktracking)).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Reinforced paths
+code::
+Pseed(Pseq([42]), PgraphWalk((a: [\b, \c], b: [\a], c: [\a]),
+    \a, 16, \reinforced, reinforcement: 0.5, output: \step)).asStream.all;
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PgraphWalk / Reinforced paths
+var values = {
+Pseed(Pseq([42]), PgraphWalk((a: [\b, \c], b: [\a], c: [\a]),
+    \a, 16, \reinforced, reinforcement: 0.5, output: \step)).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Self-avoiding traversal
+code::
+Pseed(Pseq([42]), PgraphWalk((a: [\b, \c], b: [\a, \c], c: [\a, \b]), \a, 12, \selfAvoiding)).asStream.all;
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PgraphWalk / Self-avoiding traversal
+var values = {
+Pseed(Pseq([42]), PgraphWalk((a: [\b, \c], b: [\a, \c], c: [\a, \b]), \a, 12, \selfAvoiding)).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::

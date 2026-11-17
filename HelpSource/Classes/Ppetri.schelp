@@ -1,0 +1,243 @@
+TITLE:: Ppetri
+SUMMARY:: Experimental interleaved Petri-net firing
+CATEGORIES:: Streams-Patterns-Events>Patterns>Patternarium
+RELATED:: Classes/Pconstraint, Classes/PgraphWalk, Guides/Patternarium-Systems
+
+DESCRIPTION::
+Experimental: this API may change before 1.0.
+
+At each item, chooses one enabled transition and atomically consumes/produces its tokens. Other enabled transitions remain for later interleaving; this does not model simultaneous or timed firing. Marking and transition names use Symbols. Places mentioned by arcs but absent from the initial marking begin with zero tokens.
+
+Transition definitions are literal Events/Dictionaries with optional consume and produce place/token dictionaries, nonnegative finite weight (default 1), finite priority (default 0), value (default transition name), and nonnegative finite delta (default 1). Consume/produce counts must be nonnegative Integers. Inhibitor arcs and dynamic arc/priority Functions are unsupported.
+
+Uniform ignores weights. Weighted samples positive weights. Priority first retains enabled transitions with the highest priority, then samples positive weights in that group; zero weights in that group can therefore cause a selectable deadlock. Transition names are sorted before selection for reproducible iteration order. Deadlock stop ends silently, warn warns then ends, and error throws.
+
+Each fresh output Event contains transition, value, marking and delta. Marking is copied and never exposes internal mutable state. Transition values retain caller-owned identity. Per-place token counts and output indices have explicit machine-Integer bounds. Memory is O(places plus transition arcs); enabling checks scan the consume arcs, and each firing copies the marking. All mutable net state belongs to the stream.
+
+CLASSMETHODS::
+METHOD:: new
+ARGUMENT:: marking
+Literal Dictionary/Event of place Symbols and nonnegative Integer tokens.
+ARGUMENT:: transitions
+Literal Dictionary/Event keyed by transition-name Symbols, with the transition definitions described above.
+ARGUMENT:: length
+Nonnegative Integer or inf, default inf; sampled once.
+ARGUMENT:: policy
+weighted (default), uniform or priority; sampled once.
+ARGUMENT:: deadlock
+stop (default), warn or error; sampled once.
+ARGUMENT:: output
+Only event is currently supported. Evaluated once. Other once-sampled arguments accept literal values, Functions or Patterns.
+
+INSTANCEMETHODS::
+METHOD:: storeArgs
+Returns constructor arguments in public constructor order.
+METHOD:: embedInStream
+Yields values and returns the latest inval when the stream ends.
+
+EXAMPLES::
+code::
+Ppetri((ready: 1), (start: (consume: (ready: 1), produce: (playing: 1)))).asStream.all;
+::
+
+Each firing sounds a note; pitch identifies the transition and duration follows its delta. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ppetri / Value stream
+var values = {
+Ppetri((ready: 1), (start: (consume: (ready: 1), produce: (playing: 1)))).asStream.all;
+}.value;
+var labels;
+values = if(values.isArray) { values } { [values] };
+labels = values.collect { |e| e[\transition] }.as(Set).asArray.sort;
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: if(x[\value].isNumber) { x[\value] } { [0,2,4,7].wrapAt(labels.indexOf(x[\transition])) }, cutoff: 500+(x[\marking].values.sum*400), dur: x[\delta].min(0.3).max(0.05), amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Musical example
+Load the main Guide example instruments first.
+code::
+(
+Pbind(\instrument, \mallet,
+    \fire, Pseed(Pseq([42]), Ppetri((fuel: 16), (
+        low: (consume: (fuel: 1), value: 0, delta: 0.125),
+        high: (consume: (fuel: 1), weight: 2, value: 7, delta: 0.125)), 16)),
+    \degree, Pfunc { |e| e[\fire][\value] },
+    \dur, Pfunc { |e| e[\fire][\delta] }).play;
+)
+::
+
+SUBSECTION:: Concurrent independent processes
+code::
+Ppetri((a: 1, b: 1), (
+    moveA: (consume: (a: 1), produce: (doneA: 1)),
+    moveB: (consume: (b: 1), produce: (doneB: 1))
+)).do { |event| event[\marking].postln };
+::
+
+SUBSECTION:: Synchronizing prerequisites
+code::
+Ppetri((ready: 1, cue: 1), (join: (consume: (ready: 1, cue: 1), produce: (playing: 1)))).asStream.all;
+::
+
+Each firing sounds a note; pitch identifies the transition and duration follows its delta. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ppetri / Synchronizing prerequisites
+var values = {
+Ppetri((ready: 1, cue: 1), (join: (consume: (ready: 1, cue: 1), produce: (playing: 1)))).asStream.all;
+}.value;
+var labels;
+values = if(values.isArray) { values } { [values] };
+labels = values.collect { |e| e[\transition] }.as(Set).asArray.sort;
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: if(x[\value].isNumber) { x[\value] } { [0,2,4,7].wrapAt(labels.indexOf(x[\transition])) }, cutoff: 500+(x[\marking].values.sum*400), dur: x[\delta].min(0.3).max(0.05), amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Resource constraints
+code::
+Pseed(Pseq([42]), Ppetri((free: 2), (
+    allocate: (consume: (free: 1), produce: (busy: 1)),
+    release: (consume: (busy: 1), produce: (free: 1))), 12)).asStream.all;
+::
+
+Each firing sounds a note; pitch identifies the transition and duration follows its delta. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ppetri / Resource constraints
+var values = {
+Pseed(Pseq([42]), Ppetri((free: 2), (
+    allocate: (consume: (free: 1), produce: (busy: 1)),
+    release: (consume: (busy: 1), produce: (free: 1))), 12)).asStream.all;
+}.value;
+var labels;
+values = if(values.isArray) { values } { [values] };
+labels = values.collect { |e| e[\transition] }.as(Set).asArray.sort;
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: if(x[\value].isNumber) { x[\value] } { [0,2,4,7].wrapAt(labels.indexOf(x[\transition])) }, cutoff: 500+(x[\marking].values.sum*400), dur: x[\delta].min(0.3).max(0.05), amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: One process waiting for another
+code::
+Ppetri((a: 1), (
+    processA: (consume: (a: 1), produce: (finishedA: 1)),
+    processB: (consume: (finishedA: 1), produce: (finishedB: 1))
+)).asStream.all;
+::
+
+Each firing sounds a note; pitch identifies the transition and duration follows its delta. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ppetri / One process waiting for another
+var values = {
+Ppetri((a: 1), (
+    processA: (consume: (a: 1), produce: (finishedA: 1)),
+    processB: (consume: (finishedA: 1), produce: (finishedB: 1))
+)).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+labels = values.collect { |e| e[\transition] }.as(Set).asArray.sort;
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x[\value].isNumber) { x[\value] } { [0,2,4,7].wrapAt(labels.indexOf(x[\transition])) }, cutoff: 500+(x[\marking].values.sum*400), dur: x[\delta].min(0.3).max(0.05), amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Performer or voice tokens
+code::
+Pseed(Pseq([42]), Ppetri((idleVoices: 3), (
+    play: (consume: (idleVoices: 1), produce: (playingVoices: 1)),
+    stop: (consume: (playingVoices: 1), produce: (idleVoices: 1))), 12)).asStream.all;
+::
+
+Each firing sounds a note; pitch identifies the transition and duration follows its delta. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ppetri / Performer or voice tokens
+var values = {
+Pseed(Pseq([42]), Ppetri((idleVoices: 3), (
+    play: (consume: (idleVoices: 1), produce: (playingVoices: 1)),
+    stop: (consume: (playingVoices: 1), produce: (idleVoices: 1))), 12)).asStream.all;
+}.value;
+var labels;
+values = if(values.isArray) { values } { [values] };
+labels = values.collect { |e| e[\transition] }.as(Set).asArray.sort;
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: if(x[\value].isNumber) { x[\value] } { [0,2,4,7].wrapAt(labels.indexOf(x[\transition])) }, cutoff: 500+(x[\marking].values.sum*400), dur: x[\delta].min(0.3).max(0.05), amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Abstract buffers or channels
+code::
+Pseed(Pseq([42]), Ppetri((buffer: 1, channel: 1), (
+    acquire: (consume: (buffer: 1, channel: 1), produce: (busy: 1)),
+    return: (consume: (busy: 1), produce: (buffer: 1, channel: 1))), 8)).asStream.all;
+::
+
+Each firing sounds a note; pitch identifies the transition and duration follows its delta. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ppetri / Abstract buffers or channels
+var values = {
+Pseed(Pseq([42]), Ppetri((buffer: 1, channel: 1), (
+    acquire: (consume: (buffer: 1, channel: 1), produce: (busy: 1)),
+    return: (consume: (busy: 1), produce: (buffer: 1, channel: 1))), 8)).asStream.all;
+}.value;
+var labels;
+values = if(values.isArray) { values } { [values] };
+labels = values.collect { |e| e[\transition] }.as(Set).asArray.sort;
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: if(x[\value].isNumber) { x[\value] } { [0,2,4,7].wrapAt(labels.indexOf(x[\transition])) }, cutoff: 500+(x[\marking].values.sum*400), dur: x[\delta].min(0.3).max(0.05), amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Abstract energy capacity
+code::
+Ppetri((energy: 3), (spend: (consume: (energy: 1), produce: (heat: 1)))).asStream.all;
+::
+
+Each firing sounds a note; pitch identifies the transition and duration follows its delta. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ppetri / Abstract energy capacity
+var values = {
+Ppetri((energy: 3), (spend: (consume: (energy: 1), produce: (heat: 1)))).asStream.all;
+}.value;
+var labels;
+values = if(values.isArray) { values } { [values] };
+labels = values.collect { |e| e[\transition] }.as(Set).asArray.sort;
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: if(x[\value].isNumber) { x[\value] } { [0,2,4,7].wrapAt(labels.indexOf(x[\transition])) }, cutoff: 500+(x[\marking].values.sum*400), dur: x[\delta].min(0.3).max(0.05), amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Competing enabled transitions
+code::
+Pseed(Pseq([42]), Ppetri((fuel: 12), (rare: (consume: (fuel: 1), weight: 1), common: (consume: (fuel: 1), weight: 4)), 12)).asStream.all;
+::
+
+Each firing sounds a note; pitch identifies the transition and duration follows its delta. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ppetri / Competing enabled transitions
+var values = {
+Pseed(Pseq([42]), Ppetri((fuel: 12), (rare: (consume: (fuel: 1), weight: 1), common: (consume: (fuel: 1), weight: 4)), 12)).asStream.all;
+}.value;
+var labels;
+values = if(values.isArray) { values } { [values] };
+labels = values.collect { |e| e[\transition] }.as(Set).asArray.sort;
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: if(x[\value].isNumber) { x[\value] } { [0,2,4,7].wrapAt(labels.indexOf(x[\transition])) }, cutoff: 500+(x[\marking].values.sum*400), dur: x[\delta].min(0.3).max(0.05), amp: 0.08)
+}.play;
+)
+::

@@ -1,0 +1,210 @@
+TITLE:: Pbranching
+SUMMARY:: Experimental bounded tree generation
+CATEGORIES:: Streams-Patterns-Events>Patterns>Patternarium
+RELATED:: Classes/Pmorphism, Classes/Ppetri, Guides/Patternarium-Systems
+
+DESCRIPTION::
+Experimental: this API may change before 1.0.
+
+Builds a single rooted tree lazily. Root metadata is depth 0 and index 0, with nil parentIndex and childIndex. Every other node contains value, depth, index, parentIndex and zero-based childIndex. Indices are assigned at child creation, so depth traversal can emit them out of numeric order.
+
+The root is yielded before expanding it. Each resumed parent expansion receives the latest inval. Offspring is a nonnegative Integer, a per-stream Pattern sampled once for each expanded parent, or a Function(node, inval). An exhausted offspring Pattern gives zero children to subsequent parents. Parents at maxDepth are not expanded and consume no offspring values. ValueFunction(parent, childIndex, inval) computes each child's value; nil is invalid. Without it, children inherit their parent's value.
+
+Breadth traversal uses a queue with a moving head; depth uses a stack and visits children in ascending childIndex order. MaxNodes counts the root, emitted nodes and queued nodes. The stream throws before allocating children that would exceed it. MaxNodes must be 1..1000000; maxDepth is nonnegative. The emitted node Event is a fresh shallow copy; contained values remain caller-owned, so use functional child-value updates for mutable values. Metadata copies passed to callbacks cannot change internal indices/depth.
+
+Iteration state and offspring streams are independent. Storage is O(maxNodes), including queue references retained for breadth traversal. Finite depth with zero offspring ends in extinction. This models a tree, not a continuous-time birth/death process.
+
+CLASSMETHODS::
+METHOD:: new
+ARGUMENT:: seed
+One non-nil root value, including an Array as a single value; a Function is evaluated once with inval.
+ARGUMENT:: offspring
+Nonnegative Integer, Pattern, or Function(node, inval).
+ARGUMENT:: valueFunction
+Optional Function(parent, childIndex, inval), returning a non-nil child value.
+ARGUMENT:: maxDepth
+Nonnegative Integer, default 8; sampled once.
+ARGUMENT:: maxNodes
+Positive Integer, default 10000, at most 1000000; sampled once.
+ARGUMENT:: traversal
+breadth (default) or depth; sampled once.
+ARGUMENT:: output
+node (default) or value; sampled once. Once-sampled parameters accept literals, Functions or Patterns.
+
+INSTANCEMETHODS::
+METHOD:: storeArgs
+Returns constructor arguments in public constructor order.
+METHOD:: embedInStream
+Yields values and returns the latest inval when the stream ends.
+
+EXAMPLES::
+code::
+Pbranching(0, 2, { |p, i| p[\value] + i + 1 }, 2, output: \value).asStream.all;
+::
+
+Tree values choose pitch/position; deeper descendants arrive faster. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pbranching / Value stream
+var values = {
+Pbranching(0, 2, { |p, i| p[\value] + i + 1 }, 2, output: \value).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { x[\degree] ? if(x[\value].isNumber) { x[\value] } { (x[\depth] ? 0)*3+(x[\childIndex] ? 0)*2 } } { if(x.isNumber) { x } { if(x.isArray) { x[1]*14 } { x.size*2 } } }, pan: if(x.isArray) { x[0].clip(-1,1) } { 0 }, dur: if(x.isKindOf(Dictionary)) { x[\dur] ? (0.3/((x[\depth] ? 0)+1)) } { 0.18 }, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Musical example
+Load the main Guide example instruments first.
+code::
+(
+Pbind(\instrument, \fmPiano,
+    \degree, Pbranching(0, 2, { |p, i| p[\value] + [-1, 1][i] }, 3, output: \value),
+    \dur, 0.125).play;
+)
+::
+
+SUBSECTION:: Ornament proliferation
+code::
+Pbranching(0, 2, { |p, i| p[\value] + [-1, 1][i] }, 3, output: \value).asStream.all;
+::
+
+Tree values choose pitch/position; deeper descendants arrive faster. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pbranching / Ornament proliferation
+var values = {
+Pbranching(0, 2, { |p, i| p[\value] + [-1, 1][i] }, 3, output: \value).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { x[\degree] ? if(x[\value].isNumber) { x[\value] } { (x[\depth] ? 0)*3+(x[\childIndex] ? 0)*2 } } { if(x.isNumber) { x } { if(x.isArray) { x[1]*14 } { x.size*2 } } }, pan: if(x.isArray) { x[0].clip(-1,1) } { 0 }, dur: if(x.isKindOf(Dictionary)) { x[\dur] ? (0.3/((x[\depth] ? 0)+1)) } { 0.18 }, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Phrase genealogies in depth order
+code::
+Pbranching("a", 2, { |p, i| p[\value] ++ ["b", "c"][i] }, 2, traversal: \depth).asStream.all;
+::
+
+Tree values choose pitch/position; deeper descendants arrive faster. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pbranching / Phrase genealogies in depth order
+var values = {
+Pbranching("a", 2, { |p, i| p[\value] ++ ["b", "c"][i] }, 2, traversal: \depth).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { x[\degree] ? if(x[\value].isNumber) { x[\value] } { (x[\depth] ? 0)*3+(x[\childIndex] ? 0)*2 } } { if(x.isNumber) { x } { if(x.isArray) { x[1]*14 } { x.size*2 } } }, pan: if(x.isArray) { x[0].clip(-1,1) } { 0 }, dur: if(x.isKindOf(Dictionary)) { x[\dur] ? (0.3/((x[\depth] ? 0)+1)) } { 0.18 }, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Population growth in breadth order
+code::
+(
+var nodes = Pbranching(1, 2, maxDepth: 4, traversal: \breadth).asStream.all;
+(0..4).collect { |depth| nodes.count { |n| n[\depth] == depth } };
+)
+::
+
+Tree values choose pitch/position; deeper descendants arrive faster. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pbranching / Population growth in breadth order
+var values = {
+
+var nodes = Pbranching(1, 2, maxDepth: 4, traversal: \breadth).asStream.all;
+(0..4).collect { |depth| nodes.count { |n| n[\depth] == depth } };
+
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { x[\degree] ? if(x[\value].isNumber) { x[\value] } { (x[\depth] ? 0)*3+(x[\childIndex] ? 0)*2 } } { if(x.isNumber) { x } { if(x.isArray) { x[1]*14 } { x.size*2 } } }, pan: if(x.isArray) { x[0].clip(-1,1) } { 0 }, dur: if(x.isKindOf(Dictionary)) { x[\dur] ? (0.3/((x[\depth] ? 0)+1)) } { 0.18 }, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Population extinction
+code::
+Pbranching(1, { |n| if(n[\depth] == 0) { 2 } { 0 } }).asStream.all;
+::
+
+Tree values choose pitch/position; deeper descendants arrive faster. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pbranching / Population extinction
+var values = {
+Pbranching(1, { |n| if(n[\depth] == 0) { 2 } { 0 } }).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { x[\degree] ? if(x[\value].isNumber) { x[\value] } { (x[\depth] ? 0)*3+(x[\childIndex] ? 0)*2 } } { if(x.isNumber) { x } { if(x.isArray) { x[1]*14 } { x.size*2 } } }, pan: if(x.isArray) { x[0].clip(-1,1) } { 0 }, dur: if(x.isKindOf(Dictionary)) { x[\dur] ? (0.3/((x[\depth] ? 0)+1)) } { 0.18 }, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Hierarchical event density
+code::
+Pbranching(0, { |n| if(n[\depth] < 2) { 3 } { 1 } }, maxDepth: 3).collect { |n|
+    (degree: n[\value], dur: 0.25 / (n[\depth] + 1))
+}.asStream.all;
+::
+
+Tree values choose pitch/position; deeper descendants arrive faster. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pbranching / Hierarchical event density
+var values = {
+Pbranching(0, { |n| if(n[\depth] < 2) { 3 } { 1 } }, maxDepth: 3).collect { |n|
+    (degree: n[\value], dur: 0.25 / (n[\depth] + 1))
+}.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { x[\degree] ? if(x[\value].isNumber) { x[\value] } { (x[\depth] ? 0)*3+(x[\childIndex] ? 0)*2 } } { if(x.isNumber) { x } { if(x.isArray) { x[1]*14 } { x.size*2 } } }, pan: if(x.isArray) { x[0].clip(-1,1) } { 0 }, dur: if(x.isKindOf(Dictionary)) { x[\dur] ? (0.3/((x[\depth] ? 0)+1)) } { 0.18 }, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Recursive spatial diffusion
+code::
+Pbranching([0.0, 0.0], 2, { |p, i| p[\value] + [[-0.2, 0.1], [0.2, 0.1]][i] }, 3, output: \value).asStream.all;
+::
+
+Tree values choose pitch/position; deeper descendants arrive faster. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pbranching / Recursive spatial diffusion
+var values = {
+Pbranching([0.0, 0.0], 2, { |p, i| p[\value] + [[-0.2, 0.1], [0.2, 0.1]][i] }, 3, output: \value).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { x[\degree] ? if(x[\value].isNumber) { x[\value] } { (x[\depth] ? 0)*3+(x[\childIndex] ? 0)*2 } } { if(x.isNumber) { x } { if(x.isArray) { x[1]*14 } { x.size*2 } } }, pan: if(x.isArray) { x[0].clip(-1,1) } { 0 }, dur: if(x.isKindOf(Dictionary)) { x[\dur] ? (0.3/((x[\depth] ? 0)+1)) } { 0.18 }, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Avalanche-like branching
+code::
+Pseed(Pseq([42]), Pbranching(1, Pwrand([0, 1, 2], [0.4, 0.3, 0.3], inf), maxDepth: 6, maxNodes: 1000)).asStream.all;
+::
+
+Tree values choose pitch/position; deeper descendants arrive faster. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pbranching / Avalanche-like branching
+var values = {
+Pseed(Pseq([42]), Pbranching(1, Pwrand([0, 1, 2], [0.4, 0.3, 0.3], inf), maxDepth: 6, maxNodes: 1000)).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { x[\degree] ? if(x[\value].isNumber) { x[\value] } { (x[\depth] ? 0)*3+(x[\childIndex] ? 0)*2 } } { if(x.isNumber) { x } { if(x.isArray) { x[1]*14 } { x.size*2 } } }, pan: if(x.isArray) { x[0].clip(-1,1) } { 0 }, dur: if(x.isKindOf(Dictionary)) { x[\dur] ? (0.3/((x[\depth] ? 0)+1)) } { 0.18 }, amp: 0.08)
+}.play;
+)
+::

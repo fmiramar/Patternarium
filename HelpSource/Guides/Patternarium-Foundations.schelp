@@ -1,0 +1,25 @@
+TITLE:: Patternarium Foundations
+SUMMARY:: Four mechanisms for stateful stream computation
+CATEGORIES:: Libraries>Patternarium
+RELATED:: Guides/Patternarium
+
+DESCRIPTION::
+Use Pscan for one state output per input, Pwindow for bounded local neighborhoods, Ptransduce when output cardinality changes, and Pmorphism for parallel symbolic generations.
+code::
+Pscan(Pwindow(Pseries(1, 1, 6), 2).collect(_.sum), 0, _ + _).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Patternarium-Foundations / Value stream
+var values = {
+Pscan(Pwindow(Pseries(1, 1, 6), 2).collect(_.sum), 0, _ + _).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isArray) { x } { x*2 }, dur: 0.22, amp: 0.06)
+}.play;
+)
+::
+Every stream has local iteration state. A mutable initial state supplied as a literal is still caller-owned: use a Function returning a fresh object when transitions mutate it. Outputs are values, including Arrays and Events; they are not recursively embedded as Patterns.

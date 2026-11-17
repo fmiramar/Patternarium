@@ -1,0 +1,189 @@
+TITLE:: Pqmc
+SUMMARY:: Halton and irrational additive points
+CATEGORIES:: Streams-Patterns-Events>Patterns>Patternarium
+RELATED:: Classes/ProtationWord, Classes/Pwhite, Classes/Pseed
+
+DESCRIPTION::
+Yields Float Arrays in [0,1). Halton uses radical inverses in consecutive internally generated prime bases. Its first sample is the all-zero vector; skip discards indices before that sample and leap selects every leap-th index. The additive engine is a Kronecker sequence with coordinate increments sqrt(prime) modulo one, also starting at zero. Both are deterministic when scramble is false.
+
+Scramble true applies a single independent uniform random torus shift to each coordinate for the whole stream. This is a Cranley-Patterson-style shift, not Owen digit scrambling. Pseed controls its random choices. No direction-number tables or Sobol engine are included. A leap sharing factors with a Halton base restricts coverage in that coordinate. Higher-dimensional Halton coordinates can correlate; a shifted stream is not a guarantee of uniform coverage in every finite prefix.
+
+Dimensions are limited to 4096. Sample indices above 2147483646 throw before Integer conversion. Floating-point precision limits additive recurrence quality at large indices. Prime generation uses local trial division; per-point storage is O(dimensions), and Halton evaluation uses O(dimensions times log(index)) arithmetic. There is no mutable global cache.
+
+CLASSMETHODS::
+METHOD:: new
+ARGUMENT:: dimensions
+Positive Integer, default 1, at most 4096; sampled once.
+ARGUMENT:: engine
+halton or additive, default halton; sampled once.
+ARGUMENT:: length
+Nonnegative Integer or inf, default inf; sampled once.
+ARGUMENT:: scramble
+Boolean, default false; sampled once.
+ARGUMENT:: skip
+Nonnegative Integer, default 0; sampled once.
+ARGUMENT:: leap
+Positive Integer, default 1; sampled once. All once-sampled parameters accept literals, Functions or Patterns.
+
+INSTANCEMETHODS::
+METHOD:: storeArgs
+Returns constructor arguments.
+METHOD:: embedInStream
+Yields values and returns the latest inval on termination.
+
+EXAMPLES::
+code::
+Pqmc(2, length: 8).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pqmc / Value stream
+var values = {
+Pqmc(2, length: 8).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isArray) { x[0]*14 } { x }, pan: if(x.isArray) { x[1]*2-1 } { 0 }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Musical mapping
+Load the example instruments in link::Guides/Patternarium#Example instruments:: first.
+code::
+(
+Pbind(\instrument, \mallet, \degree, Pqmc(2, length: 32).collect { |p| p[0] * 14 + (p[1] * 0.25) }, \dur, 0.125).play;
+)
+::
+
+SUBSECTION:: Multidimensional timbre exploration
+code::
+Pqmc(3, length: 8, skip: 1).collect { |p|
+    (cutoff: p[0].linexp(0, 1, 200, 8000), rq: p[1].linlin(0, 1, 0.1, 0.8), amp: p[2] * 0.1)
+}.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pqmc / Multidimensional timbre exploration
+var values = {
+Pqmc(3, length: 8, skip: 1).collect { |p|
+    (cutoff: p[0].linexp(0, 1, 200, 8000), rq: p[1].linlin(0, 1, 0.1, 0.8), amp: p[2] * 0.1)
+}.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    x.copy.putAll((instrument: \saw, degree: 0, dur: 0.3))
+}.play;
+)
+::
+
+SUBSECTION:: Spatial coordinates
+code::
+Pqmc(3, length: 8).collect { |p| p * 2 - 1 }.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pqmc / Spatial coordinates
+var values = {
+Pqmc(3, length: 8).collect { |p| p * 2 - 1 }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: (x[1]+1)*7, pan: x[0], dur: 0.25, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Preset interpolation
+code::
+Pqmc(2, length: 8).collect { |p| [p[0], (1-p[0])*p[1], (1-p[0])*(1-p[1])] }.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pqmc / Preset interpolation
+var values = {
+Pqmc(2, length: 8).collect { |p| [p[0], (1-p[0])*p[1], (1-p[0])*(1-p[1])] }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: x[0]*14, pan: x[1]-x[2], cutoff: 300+(x[0]*5000), dur: 0.25, amp: 0.07)
+}.play;
+)
+::
+
+SUBSECTION:: Experimental design
+code::
+Pqmc(2, length: 12, skip: 3, leap: 2).collect { |p|
+    (frequency: p[0].linexp(0, 1, 100, 5000), duration: p[1].linlin(0, 1, 0.05, 1))
+}.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pqmc / Experimental design
+var values = {
+Pqmc(2, length: 12, skip: 3, leap: 2).collect { |p|
+    (frequency: p[0].linexp(0, 1, 100, 5000), duration: p[1].linlin(0, 1, 0.05, 1))
+}.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, freq: x[\frequency], dur: x[\duration], amp: 0.07)
+}.play;
+)
+::
+
+SUBSECTION:: Coverage compared with Pwhite
+code::
+(
+var q = Pqmc(1, length: 16).asStream.all.flat;
+var r = Pseed(Pseq([42]), Pwhite(0.0, 1.0, 16)).asStream.all;
+[q, r].collect { |values| (0..3).collect { |i| values.count { |x| (x * 4).floor == i } } }.postln;
+)
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pqmc / Coverage compared with Pwhite
+var values = {
+
+var q = Pqmc(1, length: 16).asStream.all.flat;
+var r = Pseed(Pseq([42]), Pwhite(0.0, 1.0, 16)).asStream.all;
+[q, r].collect { |values| (0..3).collect { |i| values.count { |x| (x * 4).floor == i } } }.postln;
+
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: x*2, dur: 0.25, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Irregular evenly spread degrees
+code::
+Pqmc(1, \additive, 16, skip: 1).collect { |p| (p[0] * 14).floor }.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Pqmc / Irregular evenly spread degrees
+var values = {
+Pqmc(1, \additive, 16, skip: 1).collect { |p| (p[0] * 14).floor }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isArray) { x[0]*14 } { x }, pan: if(x.isArray) { x[1]*2-1 } { 0 }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::

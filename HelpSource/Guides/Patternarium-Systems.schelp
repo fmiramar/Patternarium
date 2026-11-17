@@ -1,0 +1,58 @@
+TITLE:: Patternarium Systems
+SUMMARY:: Experimental symbolic, token, phase and avalanche models
+CATEGORIES:: Libraries>Patternarium
+RELATED:: Guides/Patternarium, Classes/Pvomm, Classes/Ppetri, Classes/Pkuramoto, Classes/Pbranching, Classes/Psandpile
+
+DESCRIPTION::
+These five classes are experimental and may change before 1.0. They remain numerical language-side Patterns and require no server for inspection.
+
+Use Pvomm for finite-corpus PPM-C generation, Ppetri for interleaved token/resource constraints, Pkuramoto for dense phase integration, Pbranching for explicitly bounded trees, and Psandpile for fully stabilized grain additions. The class Help documents each model's exact interpretation and safety limits. They are compositional primitives, not interchangeable simulations.
+code::
+Pseed(Pseq([42]), Pvomm([0, 2, 0, 4], length: 8)).asStream.all;
+Pbranching(0, 2, maxDepth: 2).asStream.all;
+Pkuramoto([1, 1.1], phases: [0, 1], length: 4).asStream.all;
+::
+
+Node or symbol identities become pitches/chords, exposing repeated paths and context choices. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Patternarium-Systems / Value stream
+var values = {
+Pseed(Pseq([42]), Pvomm([0, 2, 0, 4], length: 8)).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { tones[x[\node]] ? 0 } { if(x.isNumber) { x } { tones[x] ? 0 } }, dur: 0.2, amp: 0.08)
+}.play;
+)
+::
+
+Tree values choose pitch/position; deeper descendants arrive faster. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Patternarium-Systems / Value stream
+var values = {
+Pbranching(0, 2, maxDepth: 2).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isKindOf(Dictionary)) { x[\degree] ? if(x[\value].isNumber) { x[\value] } { (x[\depth] ? 0)*3+(x[\childIndex] ? 0)*2 } } { if(x.isNumber) { x } { if(x.isArray) { x[1]*14 } { x.size*2 } } }, pan: if(x.isArray) { x[0].clip(-1,1) } { 0 }, dur: if(x.isKindOf(Dictionary)) { x[\dur] ? (0.3/((x[\depth] ? 0)+1)) } { 0.18 }, amp: 0.08)
+}.play;
+)
+::
+
+Phases become chord voices; synchronization magnitude becomes filter brightness. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Patternarium-Systems / Value stream
+var values = {
+Pkuramoto([1, 1.1], phases: [0, 1], length: 4).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: if(x.isKindOf(Dictionary)) { (x[\phases]/2pi*7).round } { if(x.isArray) { (x/2pi*7).round } { 0 } }, cutoff: if(x.isNumber) { x.linexp(0,1,300,6000) } { 1800 }, dur: 0.1, amp: 0.045)
+}.play;
+)
+::
+No shared mutable model is reused across streams. Callback values and arbitrary symbol objects keep their documented ownership; use functional updates when they refer to caller state. Musical examples use the four instruments in link::Guides/Patternarium#Example instruments::.

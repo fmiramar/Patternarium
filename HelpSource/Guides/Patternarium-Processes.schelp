@@ -1,0 +1,173 @@
+TITLE:: Patternarium Processes
+SUMMARY:: Positive interval streams and self-exciting events
+CATEGORIES:: Libraries>Patternarium
+RELATED:: Guides/Patternarium, Classes/PpointProcess, Classes/Prenewal, Classes/Phawkes
+
+DESCRIPTION::
+Prenewal consumes intervals; Phawkes models conditional self-excitation. Both output delta, time or fresh Events. They start with empty history at a specified origin and require no audio server for numerical use. Evaluate musical examples after loading the main Guide instruments.
+
+SECTION:: Exponential Poisson renewal timing
+For constant rate 4, draw an exponential wait by the inverse CDF. The loop excludes the RNG's possible zero endpoint.
+code::
+Pseed(Pseq([42]), Prenewal(Pfunc {
+    var u = 1.0.rand;
+    while { u <= 0 } { u = 1.0.rand };
+    u.log.neg / 4
+}, length: 16)).asStream.all;
+::
+
+Waiting times drive note spacing at half scale; process dimensions select pitches. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Patternarium-Processes / Exponential Poisson renewal timing
+var values = {
+Pseed(Pseq([42]), Prenewal(Pfunc {
+    var u = 1.0.rand;
+    while { u <= 0 } { u = 1.0.rand };
+    u.log.neg / 4
+}, length: 16)).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isKindOf(Dictionary)) { (x[\dimension] ? x[\channel] ? 0)*7 } { 0 }, dur: if(x.isKindOf(Dictionary)) { (x[\delta] ? 0.25)*0.5 } { if(x.isArray) { x[0]*0.5 } { x*0.5 } }, amp: 0.09)
+}.play;
+)
+::
+
+SECTION:: Gamma renewal timing
+An Erlang distribution is gamma with integer shape. Sum three independent rate-12 exponential waits, giving mean 0.25.
+code::
+Pseed(Pseq([42]), Prenewal(Pfunc {
+    Array.fill(3, {
+        var u = 1.0.rand;
+        while { u <= 0 } { u = 1.0.rand };
+        u.log.neg / 12
+    }).sum
+}, length: 16)).asStream.all;
+::
+
+Waiting times drive note spacing at half scale; process dimensions select pitches. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Patternarium-Processes / Gamma renewal timing
+var values = {
+Pseed(Pseq([42]), Prenewal(Pfunc {
+    Array.fill(3, {
+        var u = 1.0.rand;
+        while { u <= 0 } { u = 1.0.rand };
+        u.log.neg / 12
+    }).sum
+}, length: 16)).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isKindOf(Dictionary)) { (x[\dimension] ? x[\channel] ? 0)*7 } { 0 }, dur: if(x.isKindOf(Dictionary)) { (x[\delta] ? 0.25)*0.5 } { if(x.isArray) { x[0]*0.5 } { x*0.5 } }, amp: 0.09)
+}.play;
+)
+::
+
+SECTION:: Weibull renewal timing
+Shape 1.5 and scale 0.25 change the interval distribution.
+code::
+Pseed(Pseq([42]), Prenewal(Pfunc {
+    var u = 1.0.rand;
+    while { u <= 0 } { u = 1.0.rand };
+    0.25 * u.log.neg.pow(1 / 1.5)
+}, length: 16)).asStream.all;
+::
+
+Waiting times drive note spacing at half scale; process dimensions select pitches. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Patternarium-Processes / Weibull renewal timing
+var values = {
+Pseed(Pseq([42]), Prenewal(Pfunc {
+    var u = 1.0.rand;
+    while { u <= 0 } { u = 1.0.rand };
+    0.25 * u.log.neg.pow(1 / 1.5)
+}, length: 16)).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isKindOf(Dictionary)) { (x[\dimension] ? x[\channel] ? 0)*7 } { 0 }, dur: if(x.isKindOf(Dictionary)) { (x[\delta] ? 0.25)*0.5 } { if(x.isArray) { x[0]*0.5 } { x*0.5 } }, amp: 0.09)
+}.play;
+)
+::
+
+SECTION:: Refractory-like timing
+A fixed minimum interval plus an exponential tail.
+code::
+Pseed(Pseq([42]), Prenewal(Pfunc {
+    var u = 1.0.rand;
+    while { u <= 0 } { u = 1.0.rand };
+    0.1 + (u.log.neg / 8)
+}, length: 16)).asStream.all;
+::
+
+Waiting times drive note spacing at half scale; process dimensions select pitches. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Patternarium-Processes / Refractory-like timing
+var values = {
+Pseed(Pseq([42]), Prenewal(Pfunc {
+    var u = 1.0.rand;
+    while { u <= 0 } { u = 1.0.rand };
+    0.1 + (u.log.neg / 8)
+}, length: 16)).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isKindOf(Dictionary)) { (x[\dimension] ? x[\channel] ? 0)*7 } { 0 }, dur: if(x.isKindOf(Dictionary)) { (x[\delta] ? 0.25)*0.5 } { if(x.isArray) { x[0]*0.5 } { x*0.5 } }, amp: 0.09)
+}.play;
+)
+::
+
+SECTION:: Approximate time-varying rate
+The next wait uses the rate evaluated at the previous arrival time. This frozen-rate approximation is not an exact non-homogeneous Poisson sampler and works best when the rate changes slowly relative to waiting times. These intervals are not an iid renewal model.
+code::
+Pseed(Pseq([42]), Prenewal(Pscan(Pseq([0], 16), (time: 0), { |state|
+    var rate = 4 + (0.5 * (state[\time] * 0.2).sin), u = 1.0.rand, delta;
+    while { u <= 0 } { u = 1.0.rand };
+    delta = u.log.neg / rate;
+    (time: state[\time] + delta, delta: delta)
+}).collect { |state| state[\delta] })).asStream.all;
+::
+
+Waiting times drive note spacing at half scale; process dimensions select pitches. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Patternarium-Processes / Approximate time-varying rate
+var values = {
+Pseed(Pseq([42]), Prenewal(Pscan(Pseq([0], 16), (time: 0), { |state|
+    var rate = 4 + (0.5 * (state[\time] * 0.2).sin), u = 1.0.rand, delta;
+    while { u <= 0 } { u = 1.0.rand };
+    delta = u.log.neg / rate;
+    (time: state[\time] + delta, delta: delta)
+}).collect { |state| state[\delta] })).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isKindOf(Dictionary)) { (x[\dimension] ? x[\channel] ? 0)*7 } { 0 }, dur: if(x.isKindOf(Dictionary)) { (x[\delta] ? 0.25)*0.5 } { if(x.isArray) { x[0]*0.5 } { x*0.5 } }, amp: 0.09)
+}.play;
+)
+::
+
+SECTION:: Self-correcting and self-exciting timing
+A continuous-time self-correcting conditional-intensity model is a future specialization. Prenewal consumes intervals supplied by the user; it does not implement that intensity model itself. For nonnegative self-excitation, use link::Classes/Phawkes::.
+code::
+Pseed(Pseq([42]), Phawkes(1, 0.7, 1.2, length: 16)).asStream.all;
+::
+
+Waiting times drive note spacing at half scale; process dimensions select pitches. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Patternarium-Processes / Self-correcting and self-exciting timing
+var values = {
+Pseed(Pseq([42]), Phawkes(1, 0.7, 1.2, length: 16)).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isKindOf(Dictionary)) { (x[\dimension] ? x[\channel] ? 0)*7 } { 0 }, dur: if(x.isKindOf(Dictionary)) { (x[\delta] ? 0.25)*0.5 } { if(x.isArray) { x[0]*0.5 } { x*0.5 } }, amp: 0.09)
+}.play;
+)
+::

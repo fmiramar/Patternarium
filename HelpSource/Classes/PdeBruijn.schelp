@@ -1,0 +1,169 @@
+TITLE:: PdeBruijn
+SUMMARY:: Cyclic coverage of all fixed-length local words
+CATEGORIES:: Streams-Patterns-Events>Patterns>Patternarium
+RELATED:: Classes/PgrayCode, Classes/Pseq, Classes/Pwindow
+
+DESCRIPTION::
+Builds a De Bruijn cycle using FKM necklace concatenation, then yields its alphabet objects directly. Each cyclic word of order consecutive symbols occurs once. This covers local subsequences, rather than permutations of an alphabet: repeated symbols within a word are essential. Wrap the cycle around to inspect boundary words. One cycle has alphabet.size raised to order items; cycles exceeding 1000000 items throw before allocation. Memory is O(cycle length + order); generation time is proportional to the generated necklaces and cycle. Objects inside the copied alphabet retain identity. Nil symbols are invalid. All input streams receive the latest inval; finite termination returns it.
+
+CLASSMETHODS::
+METHOD:: new
+ARGUMENT:: alphabet
+Nonempty literal SequenceableCollection of unique non-nil values, copied at stream start.
+ARGUMENT:: order
+Positive Integer, Function or Pattern sampled once.
+ARGUMENT:: repeats
+Nonnegative Integer or inf, default 1; sampled once. Zero yields nothing.
+ARGUMENT:: rotation
+Integer, default 0, sampled once. Output begins at this left offset modulo cycle length; negative values wrap.
+
+INSTANCEMETHODS::
+METHOD:: storeArgs
+Returns constructor arguments.
+METHOD:: embedInStream
+Yields values and returns the latest inval on termination.
+
+EXAMPLES::
+code::
+PdeBruijn([0, 1], 3).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PdeBruijn / Value stream
+var values = {
+PdeBruijn([0, 1], 3).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isNumber) { x.fold(-7,14) } { 0 }, dur: 0.18, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Musical mapping
+Load the example instruments in link::Guides/Patternarium#Example instruments:: first.
+code::
+(
+Pbind(\instrument, \mallet, \degree, PdeBruijn([0, 2, 4, 7], 2), \dur, 0.125).play;
+)
+::
+
+SUBSECTION:: Articulation transitions
+code::
+PdeBruijn([\legato, \staccato, \accent], 2).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PdeBruijn / Articulation transitions
+var values = {
+PdeBruijn([\legato, \staccato, \accent], 2).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: 0, dur: 0.2, legato: if(x == \staccato) { 0.2 } { 0.9 }, amp: if(x == \accent) { 0.13 } { 0.06 })
+}.play;
+)
+::
+
+SUBSECTION:: Short rhythmic cells
+code::
+PdeBruijn([0.125, 0.25, 0.5], 3).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PdeBruijn / Short rhythmic cells
+var values = {
+PdeBruijn([0.125, 0.25, 0.5], 3).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: 0, dur: x, amp: 0.1)
+}.play;
+)
+::
+
+SUBSECTION:: Discrete synthesis combinations
+code::
+PdeBruijn([[800, 0.1], [2000, 0.3], [4000, 0.6]], 2).collect { |p|
+    (cutoff: p[0], rq: p[1])
+}.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PdeBruijn / Discrete synthesis combinations
+var values = {
+PdeBruijn([[800, 0.1], [2000, 0.3], [4000, 0.6]], 2).collect { |p|
+    (cutoff: p[0], rq: p[1])
+}.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    x.copy.putAll((instrument: \saw, degree: 0, dur: 0.2, amp: 0.07))
+}.play;
+)
+::
+
+SUBSECTION:: Balanced local musical words
+code::
+PdeBruijn((0..4), 2).asStream.all.clump(5);
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PdeBruijn / Balanced local musical words
+var values = {
+PdeBruijn((0..4), 2).asStream.all.clump(5);
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: if(x.isNumber) { x.fold(-7,14) } { 0 }, dur: 0.18, amp: 0.08)
+}.play;
+)
+::
+
+SUBSECTION:: Perceptual-test contexts
+code::
+PdeBruijn([\quiet, \medium, \loud], 3).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PdeBruijn / Perceptual-test contexts
+var values = {
+PdeBruijn([\quiet, \medium, \loud], 3).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: 0, amp: (quiet: 0.025, medium: 0.065, loud: 0.14)[x], dur: 0.25)
+}.play;
+)
+::
+
+SUBSECTION:: Speaker transition test
+code::
+Pwindow(PdeBruijn([0, 1, 2, 3], 2, 2), 2).asStream.nextN(16);
+::
+
+Channel transitions are auditioned as stereo positions. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PdeBruijn / Speaker transition test
+var values = {
+Pwindow(PdeBruijn([0, 1, 2, 3], 2, 2), 2).asStream.nextN(16);
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: x[1]*2, pan: x[1].linlin(0,3,-1,1), dur: 0.2, amp: 0.09)
+}.play;
+)
+::

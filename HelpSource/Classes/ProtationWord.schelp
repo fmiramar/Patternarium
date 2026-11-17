@@ -1,0 +1,165 @@
+TITLE:: ProtationWord
+SUMMARY:: Mechanical words and circle-partition coding
+CATEGORIES:: Streams-Patterns-Events>Patterns>Patternarium
+RELATED:: Classes/Pqmc, Classes/PnumSeq, Classes/Pseries
+
+DESCRIPTION::
+Normalizes alpha and phase modulo one. With nil cuts, yields the lower mechanical binary word floor((n+1)*alpha+phase) - floor(n*alpha+phase), indexed from zero. With cuts, evaluates (n*alpha+phase) modulo one and returns its zero-based interval index; an exact cut belongs to the interval to its right. Rational rotations are periodic in exact arithmetic; an irrational binary mechanical coding is Sturmian in exact arithmetic. Finite precision limits both statements in software. Direct formula evaluation avoids cumulative phase-addition drift. Indices above 2147483646 are guarded. Storage is constant plus the cuts; partition evaluation is O(cuts.size).
+
+CLASSMETHODS::
+METHOD:: new
+ARGUMENT:: alpha
+Finite number, Function or Pattern sampled once, normalized modulo one.
+ARGUMENT:: phase
+Finite number, default 0; sampled once and normalized modulo one.
+ARGUMENT:: length
+Nonnegative Integer or inf, default inf; sampled once.
+ARGUMENT:: cuts
+Nil for mechanical binary coding, or a literal strictly increasing collection in (0,1). Empty cuts gives the constant interval index 0.
+
+INSTANCEMETHODS::
+METHOD:: storeArgs
+Returns constructor arguments.
+METHOD:: embedInStream
+Yields values and returns the latest inval on termination.
+
+EXAMPLES::
+code::
+ProtationWord((5.sqrt - 1) / 2, length: 16).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: ProtationWord / Value stream
+var values = {
+ProtationWord((5.sqrt - 1) / 2, length: 16).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isArray) { x*7 } { x*7 }, dur: 0.18, amp: 0.07)
+}.play;
+)
+::
+
+SUBSECTION:: Musical mapping
+Load the example instruments in link::Guides/Patternarium#Example instruments:: first.
+code::
+(
+Pbind(\instrument, \mallet, \degree, ProtationWord((5.sqrt - 1) / 2, length: 32).collect { |x| [0, 7][x] }, \dur, 0.125).play;
+)
+::
+
+SUBSECTION:: Balanced binary rhythm
+code::
+ProtationWord((5.sqrt - 1) / 2, length: 24).collect { |x| [Rest(0.125), 0.125][x] }.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: ProtationWord / Balanced binary rhythm
+var values = {
+ProtationWord((5.sqrt - 1) / 2, length: 24).collect { |x| [Rest(0.125), 0.125][x] }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: 0, dur: x, amp: 0.1)
+}.play;
+)
+::
+
+SUBSECTION:: Complementary streams
+code::
+ProtationWord(2.sqrt - 1, length: 16).collect { |x| [x, 1-x] }.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: ProtationWord / Complementary streams
+var values = {
+ProtationWord(2.sqrt - 1, length: 16).collect { |x| [x, 1-x] }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: [0,7], amp: x*0.09, dur: 0.2)
+}.play;
+)
+::
+
+SUBSECTION:: Aperiodic degree selection
+code::
+ProtationWord(2.sqrt - 1, length: 24).collect { |x| [0, 4][x] }.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: ProtationWord / Aperiodic degree selection
+var values = {
+ProtationWord(2.sqrt - 1, length: 24).collect { |x| [0, 4][x] }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isArray) { x*7 } { x*7 }, dur: 0.18, amp: 0.07)
+}.play;
+)
+::
+
+SUBSECTION:: Rational periodic contrast
+code::
+ProtationWord(3/8, length: 24).asStream.all.clump(8);
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: ProtationWord / Rational periodic contrast
+var values = {
+ProtationWord(3/8, length: 24).asStream.all.clump(8);
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isArray) { x*7 } { x*7 }, dur: 0.18, amp: 0.07)
+}.play;
+)
+::
+
+SUBSECTION:: Multiple interval symbols
+code::
+ProtationWord(2.sqrt - 1, length: 16, cuts: [0.25, 0.7]).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: ProtationWord / Multiple interval symbols
+var values = {
+ProtationWord(2.sqrt - 1, length: 16, cuts: [0.25, 0.7]).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: if(x.isArray) { x*7 } { x*7 }, dur: 0.18, amp: 0.07)
+}.play;
+)
+::
+
+SUBSECTION:: Quasicrystal-like ordering
+code::
+ProtationWord((5.sqrt - 1) / 2, length: 24).collect { |x| [1, 2][x] }.asStream.all; // two tile lengths, a conceptual musical mapping
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: ProtationWord / Quasicrystal-like ordering
+var values = {
+ProtationWord((5.sqrt - 1) / 2, length: 24).collect { |x| [1, 2][x] }.asStream.all; // two tile lengths, a conceptual musical mapping
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: 0, dur: x*0.15, amp: 0.1)
+}.play;
+)
+::

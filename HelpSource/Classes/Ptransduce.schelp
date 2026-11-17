@@ -1,0 +1,322 @@
+TITLE:: Ptransduce
+SUMMARY:: Stateful zero, one or many outputs per input
+CATEGORIES:: Streams-Patterns-Events>Patterns>Patternarium
+RELATED:: Classes/Pscan, Classes/Pcollect, Classes/Pselect
+
+DESCRIPTION::
+Calls function(state, input, index, inval) for each source item. Return an Event containing state and an optional emit collection. Stop true emits the supplied items and ends; returning nil ends immediately. Only natural source termination invokes flush, once. See link::Reference/Patternarium-Protocols::. Output collection items are yielded directly, including Arrays and Events. Nil items are rejected. State is not copied. Memory depends on user state and the current emission collection. A transition that never emits can consume arbitrarily many source items in one next call.
+
+CLASSMETHODS::
+METHOD:: new
+ARGUMENT:: pattern
+Source Pattern, streamed with the latest inval.
+ARGUMENT:: initial
+State evaluated once with value(inval). Use a Function for fresh mutable state.
+ARGUMENT:: function
+Function returning a validated step Event or nil. Index starts at zero.
+ARGUMENT:: flush
+Optional Function called with state, number of consumed items and latest inval on natural termination. Uses the same result protocol.
+
+INSTANCEMETHODS::
+METHOD:: storeArgs
+Returns the constructor arguments for archive reconstruction.
+METHOD:: embedInStream
+Runs the stream protocol and returns the latest inval on termination.
+
+EXAMPLES::
+code::
+Ptransduce(Pseq([1, 2, 3]), 0, { |s, x| (state: s + x, emit: [s + x]) }).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ptransduce / Value stream
+var values = {
+Ptransduce(Pseq([1, 2, 3]), 0, { |s, x| (state: s + x, emit: [s + x]) }).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: x*3, dur: 0.16, amp: 0.09)
+}.play;
+)
+::
+
+SECTION:: Musical example
+Load the example instruments in link::Guides/Patternarium#Example instruments:: first, then evaluate this block.
+code::
+(
+Pbind(\instrument, \fmPiano, \degree, Ptransduce(Pseq([0, 2, 4, 5]), 0, { |s, x| (state: x, emit: [x, x + 1, x]) }), \dur, 0.125).play;
+)
+::
+
+SUBSECTION:: Debouncing
+code::
+Ptransduce(Pseq([0, 1, 0, 1, 1, 0, 0]), (last: -1, n: 0), { |s, x|
+    var n = if(x == s[\last]) { s[\n] + 1 } { 1 };
+    (state: (last: x, n: n), emit: if(n == 2) { [x] } { [] })
+}).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ptransduce / Debouncing
+var values = {
+Ptransduce(Pseq([0, 1, 0, 1, 1, 0, 0]), (last: -1, n: 0), { |s, x|
+    var n = if(x == s[\last]) { s[\n] + 1 } { 1 };
+    (state: (last: x, n: n), emit: if(n == 2) { [x] } { [] })
+}).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: x*3, dur: 0.16, amp: 0.09)
+}.play;
+)
+::
+
+SUBSECTION:: Hysteresis
+code::
+Ptransduce(Pseq([0.2, 0.6, 0.9, 0.5, 0.1]), 0, { |s, x|
+    var next = if(x > 0.8) { 1 } { if(x < 0.3) { 0 } { s } };
+    (state: next, emit: [next])
+}).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ptransduce / Hysteresis
+var values = {
+Ptransduce(Pseq([0.2, 0.6, 0.9, 0.5, 0.1]), 0, { |s, x|
+    var next = if(x > 0.8) { 1 } { if(x < 0.3) { 0 } { s } };
+    (state: next, emit: [next])
+}).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: x*3, dur: 0.16, amp: 0.09)
+}.play;
+)
+::
+
+SUBSECTION:: Symbolic token parsing
+code::
+Ptransduce(Pseq([\a, \b, \space, \c, \space]), [], { |s, x|
+    if(x == \space) { (state: [], emit: [s]) } { (state: s.add(x), emit: []) }
+}).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ptransduce / Symbolic token parsing
+var values = {
+Ptransduce(Pseq([\a, \b, \space, \c, \space]), [], { |s, x|
+    if(x == \space) { (state: [], emit: [s]) } { (state: s.add(x), emit: []) }
+}).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: x.collect { |v| if(v.isNumber) { v } { tones[v] ? 0 } }, dur: 0.35, amp: 0.05)
+}.play;
+)
+::
+
+SUBSECTION:: Ornament insertion
+code::
+Ptransduce(Pseq([0, 2, 4]), 0, { |s, x| (state: x, emit: [x, x + 1, x]) }).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ptransduce / Ornament insertion
+var values = {
+Ptransduce(Pseq([0, 2, 4]), 0, { |s, x| (state: x, emit: [x, x + 1, x]) }).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: x*3, dur: 0.16, amp: 0.09)
+}.play;
+)
+::
+
+SUBSECTION:: Conditional rhythmic rewriting
+code::
+Ptransduce(Pseq([0.25, 1, 0.5]), 0, { |s, x| (state: s, emit: if(x >= 1) { [0.5, 0.5] } { [x] }) }).asStream.all;
+::
+
+Emitted durations drive the rhythm directly. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ptransduce / Conditional rhythmic rewriting
+var values = {
+Ptransduce(Pseq([0.25, 1, 0.5]), 0, { |s, x| (state: s, emit: if(x >= 1) { [0.5, 0.5] } { [x] }) }).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: 0, dur: x.max(0.04), amp: 0.1)
+}.play;
+)
+::
+
+SUBSECTION:: Pairing note messages
+code::
+Ptransduce(Pseq([(on: true, pitch: 60, time: 0), (on: false, pitch: 60, time: 1)]), { Dictionary.new }, { |s, x|
+    var start;
+    if(x[\on]) {
+        s[x[\pitch]] = x[\time]; (state: s, emit: [])
+    } {
+        start = s.removeAt(x[\pitch]);
+        (state: s, emit: if(start.notNil) { [(midinote: x[\pitch], dur: x[\time] - start)] } { [] })
+    }
+}).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ptransduce / Pairing note messages
+var values = {
+Ptransduce(Pseq([(on: true, pitch: 60, time: 0), (on: false, pitch: 60, time: 1)]), { Dictionary.new }, { |s, x|
+    var start;
+    if(x[\on]) {
+        s[x[\pitch]] = x[\time]; (state: s, emit: [])
+    } {
+        start = s.removeAt(x[\pitch]);
+        (state: s, emit: if(start.notNil) { [(midinote: x[\pitch], dur: x[\time] - start)] } { [] })
+    }
+}).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, midinote: x[\midinote], dur: x[\dur], amp: 0.1)
+}.play;
+)
+::
+
+SUBSECTION:: Phrase segmentation
+code::
+Ptransduce(Pseq([0, 2, -99, 4, 5]), [], { |s, x|
+    if(x == -99) { (state: [], emit: [s]) } { (state: s.add(x)) }
+}, { |s| (state: s, emit: if(s.isEmpty) { [] } { [s] }) }).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ptransduce / Phrase segmentation
+var values = {
+Ptransduce(Pseq([0, 2, -99, 4, 5]), [], { |s, x|
+    if(x == -99) { (state: [], emit: [s]) } { (state: s.add(x)) }
+}, { |s| (state: s, emit: if(s.isEmpty) { [] } { [s] }) }).asStream.all;
+}.value;
+var tones = (a: 0, b: 2, c: 4, d: 7, x: 9, y: 11, tonic: [0,2,4], subdominant: [3,5,7], dominant: [4,6,8], dark: 0, warm: 2, bright: 7, kick: -7, snare: 0, hat: 14, intro: 0, verse: 2, chorus: 4, bridge: 7, outro: 0, quiet: 0, medium: 2, loud: 4), labels;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \fmPiano, degree: x.collect { |v| if(v.isNumber) { v } { tones[v] ? 0 } }, dur: 0.35, amp: 0.05)
+}.play;
+)
+::
+
+SUBSECTION:: Stateful quantization
+code::
+Ptransduce(Pseq([0.21, 0.24, 0.31, 0.22]), 0, { |s, x|
+    var corrected = x + s, q = corrected.round(0.25);
+    (state: corrected - q, emit: [q])
+}).asStream.all;
+::
+
+Emitted durations drive the rhythm directly. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ptransduce / Stateful quantization
+var values = {
+Ptransduce(Pseq([0.21, 0.24, 0.31, 0.22]), 0, { |s, x|
+    var corrected = x + s, q = corrected.round(0.25);
+    (state: corrected - q, emit: [q])
+}).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: 0, dur: x.max(0.04), amp: 0.1)
+}.play;
+)
+::
+
+SUBSECTION:: Run-length encoding
+code::
+Ptransduce(Pseq([1, 1, 0, 0, 0, 1]), (last: nil, n: 0), { |s, x|
+    var same = s[\last] == x;
+    (state: (last: x, n: if(same) { s[\n] + 1 } { 1 }),
+        emit: if(same or: { s[\n] == 0 }) { [] } { [[s[\last], s[\n]]] })
+}, { |s| (state: s, emit: [[s[\last], s[\n]]]) }).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ptransduce / Run-length encoding
+var values = {
+Ptransduce(Pseq([1, 1, 0, 0, 0, 1]), (last: nil, n: 0), { |s, x|
+    var same = s[\last] == x;
+    (state: (last: x, n: if(same) { s[\n] + 1 } { 1 }),
+        emit: if(same or: { s[\n] == 0 }) { [] } { [[s[\last], s[\n]]] })
+}, { |s| (state: s, emit: [[s[\last], s[\n]]]) }).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: x[0]*7, dur: x[1]*0.15, amp: 0.1)
+}.play;
+)
+::
+
+SUBSECTION:: Run-length decoding
+code::
+Ptransduce(Pseq([[1, 2], [0, 3], [1, 1]]), 0, { |s, x| (state: s, emit: x[0].dup(x[1])) }).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ptransduce / Run-length decoding
+var values = {
+Ptransduce(Pseq([[1, 2], [0, 3], [1, 1]]), 0, { |s, x| (state: s, emit: x[0].dup(x[1])) }).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: x*3, dur: 0.16, amp: 0.09)
+}.play;
+)
+::
+
+SUBSECTION:: Protocol state machine
+code::
+Ptransduce(Pseq([\open, 1, 2, \close, 3]), false, { |s, x|
+    case
+    { x == \open } { (state: true) }
+    { x == \close } { (state: false) }
+    { true } { (state: s, emit: if(s) { [x] } { [] }) }
+}).asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Ptransduce / Protocol state machine
+var values = {
+Ptransduce(Pseq([\open, 1, 2, \close, 3]), false, { |s, x|
+    case
+    { x == \open } { (state: true) }
+    { x == \close } { (state: false) }
+    { true } { (state: s, emit: if(s) { [x] } { [] }) }
+}).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: x*3, dur: 0.16, amp: 0.09)
+}.play;
+)
+::

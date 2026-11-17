@@ -1,0 +1,184 @@
+TITLE:: Psandpile
+SUMMARY:: Experimental finite Abelian sandpile avalanches
+CATEGORIES:: Streams-Patterns-Events>Patterns>Patternarium
+RELATED:: Classes/Pbranching, Classes/Pwindow, Guides/Patternarium-Systems
+
+DESCRIPTION::
+Experimental: this API may change before 1.0.
+
+Adds one grain at each drive item, fully stabilizes the finite grid, then yields. One-dimensional size is [length] or an Integer. Two-dimensional size is [width,height], with state represented as height rows of width values and coordinates [x,y]. A scalar drive is a row-major linear index; a one/two-element coordinate is also accepted.
+
+Threshold must be an Integer at least the number of directions: 2 in one dimension, 4 in two. Each toppling subtracts threshold and sends one grain in each orthogonal direction. Threshold greater than that degree dissipates the surplus as bulk loss; threshold 2 gives the conservative 1D interior model. Open boundaries lose out-of-grid grains. Closed boundaries reflect each out-of-grid grain to the toppled site. Thus closed boundaries with threshold equal to degree conserve grains and need not stabilize.
+
+A conservative closed grid above its maximum stable capacity is rejected immediately. Other unstable configurations, including cycles below that capacity, throw at maxTopplings rather than looping forever. The budget applies separately to each added grain and is at most 1000000. Initial heights need not be stable; their stabilization contributes to the first avalanche. Total grains must stay below the guarded machine-Integer limit, and size is at most 65536 sites.
+
+Avalanche output is a fresh Event with drive, avalancheSize, activeSites, lostGrains and copied state. It also includes toppledSites, a sorted Array of distinct coordinates useful for spatial mappings. Size output yields only the number of topplings, including zero. Drive Functions receive a copied pre-addition grid, zero-based item index and latest inval. Nil drive results or exhausted drive Patterns terminate. Random drive uses the thread RNG, controlled by Pseed.
+
+A FIFO work queue avoids whole-grid rescans per toppling. Each item scans/copies the grid and performs O(topplings) local updates. Storage is O(sites plus queued topplings), bounded by size and maxTopplings; no avalanche history is retained. Outputs cannot mutate the internal grid. Tiny examples demonstrate buildup and dissipation, not a measured power-law distribution.
+
+CLASSMETHODS::
+METHOD:: new
+ARGUMENT:: size
+Integer or one/two positive Integers, default #[8,8]; sampled once.
+ARGUMENT:: initial
+Nil for an empty grid, or a literal nonnegative Integer grid matching size; copied per stream.
+ARGUMENT:: drive
+Nil for random sites, a Pattern, Function(grid, index, inval), or literal index/coordinate.
+ARGUMENT:: threshold
+Integer at least 2 for 1D or 4 for 2D, default 4; sampled once.
+ARGUMENT:: boundary
+open (default) or closed; sampled once.
+ARGUMENT:: length
+Nonnegative Integer or inf, default inf; sampled once.
+ARGUMENT:: output
+avalanche (default) or size; sampled once.
+ARGUMENT:: maxTopplings
+Nonnegative Integer, default 1000000, at most 1000000; sampled once. Once-sampled arguments accept literals, Functions or Patterns.
+
+INSTANCEMETHODS::
+METHOD:: storeArgs
+Returns constructor arguments in public constructor order.
+METHOD:: embedInStream
+Yields values and returns the latest inval when the stream ends.
+
+EXAMPLES::
+code::
+Psandpile([3], drive: Pseq([1], 8), threshold: 2, output: \size).asStream.all;
+::
+
+Larger avalanches sound denser and louder; small drives remain quiet pulses. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Psandpile / Value stream
+var values = {
+Psandpile([3], drive: Pseq([1], 8), threshold: 2, output: \size).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: x % 7, dur: (0.25/(x+1)).max(0.03), amp: (0.04+(x*0.008)).min(0.12))
+}.play;
+)
+::
+
+SUBSECTION:: Musical example
+Load the main Guide example instruments first.
+code::
+(
+Pbind(\instrument, \mallet, \degree, 0,
+    \size, Psandpile([4,4], drive: { [1,1] }, length: 64, output: \size),
+    \amp, Pfunc { |e| if(e[\size] > 0) { 0.1 } { 0 } },
+    \dur, 0.125).play;
+)
+::
+
+SUBSECTION:: Grain-cloud density control
+code::
+Psandpile([4,4], drive: { [1,1] }, length: 32, output: \size).collect { |size|
+    (density: 4 + (size * 2), grainInterval: 1 / (4 + (size * 2)))
+}.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Psandpile / Grain-cloud density control
+var values = {
+Psandpile([4,4], drive: { [1,1] }, length: 32, output: \size).collect { |size|
+    (density: 4 + (size * 2), grainInterval: 1 / (4 + (size * 2)))
+}.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: 0, dur: x[\grainInterval], amp: 0.07)
+}.play;
+)
+::
+
+SUBSECTION:: Clustered percussion
+code::
+(
+Pbind(\instrument, \mallet,
+    \degree, Psandpile([4,4], drive: { [1,1] }, length: 48, output: \size).collect { |n| if(n > 0) { 0 } { Rest(0) } },
+    \dur, 0.125).play;
+)
+::
+
+SUBSECTION:: Spatial spreading through toppled sites
+code::
+Psandpile([3,3], [[3,3,3],[3,3,3],[3,3,3]], { [1,1] }, length: 6).collect { |e| e[\toppledSites] }.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Psandpile / Spatial spreading through toppled sites
+var values = {
+Psandpile([3,3], [[3,3,3],[3,3,3],[3,3,3]], { [1,1] }, length: 6).collect { |e| e[\toppledSites] }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, type: if(x.isEmpty) { \rest } { \note }, degree: if(x.isEmpty) { 0 } { x.keep(8).collect { |p| p[0]+(p[1]*3) } }, pan: if(x.isEmpty) { 0 } { x.collect { |p| p[0]-1 }.mean }, dur: 0.25, amp: 0.035)
+}.play;
+)
+::
+
+SUBSECTION:: Form-level density from local statistics
+code::
+Pwindow(Psandpile([4,4], drive: { [1,1] }, length: 64, output: \size), 8, 8).collect(_.mean).asStream.all;
+::
+
+Larger avalanches sound denser and louder; small drives remain quiet pulses. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Psandpile / Form-level density from local statistics
+var values = {
+Pwindow(Psandpile([4,4], drive: { [1,1] }, length: 64, output: \size), 8, 8).collect(_.mean).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: x % 7, dur: (0.25/(x+1)).max(0.03), amp: (0.04+(x*0.008)).min(0.12))
+}.play;
+)
+::
+
+SUBSECTION:: Boundary dissipation
+code::
+Psandpile([1,1], [[3]], { 0 }, length: 1).asStream.next; // four grains lost
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Psandpile / Boundary dissipation
+var values = {
+Psandpile([1,1], [[3]], { 0 }, length: 1).asStream.next; // four grains lost
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: x[\lostGrains], dur: 0.25, amp: 0.1)
+}.play;
+)
+::
+
+SUBSECTION:: Repeated buildup and release
+code::
+Psandpile([4,4], drive: { [1,1] }, length: 32).collect { |e|
+    [e[\state].flat.sum, e[\avalancheSize], e[\lostGrains]]
+}.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: Psandpile / Repeated buildup and release
+var values = {
+Psandpile([4,4], drive: { [1,1] }, length: 32).collect { |e|
+    [e[\state].flat.sum, e[\avalancheSize], e[\lostGrains]]
+}.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: x[0] % 7, cutoff: 500+(x[1]*300), dur: 0.2, amp: 0.06)
+}.play;
+)
+::

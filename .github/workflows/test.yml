@@ -1,0 +1,18 @@
+name: Patternarium tests
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  language-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install headless SuperCollider
+        run: sudo apt-get update && sudo apt-get install -y supercollider-language
+      - name: Compile and run Patternarium tests
+        run: scripts/test.sh
+        env:
+          QTWEBENGINE_DISABLE_SANDBOX: '1'
+      - name: Render Help and evaluate examples without audio
+        run: scripts/test.sh "$PWD/Tests/check-help.scd"
+        env:
+          QTWEBENGINE_DISABLE_SANDBOX: '1'

@@ -1,0 +1,173 @@
+TITLE:: PgrayCode
+SUMMARY:: Reflected mixed-radix state traversal
+CATEGORIES:: Streams-Patterns-Events>Patterns>Patternarium
+RELATED:: Classes/PdeBruijn, Classes/Pwindow, Classes/Pseq
+
+DESCRIPTION::
+Yields a fresh Array for every point in a discrete product space. The last coordinate changes fastest. Adjacent states within a traversal differ in one coordinate by one unit. A new traversal restarts at all zeros: the end-to-start boundary may jump in several coordinates or by several units. The carry scan is amortized constant work per state; copying each result costs O(dimensions). Storage is O(dimensions), regardless of the product of the radices. Iteration state belongs to each stream.
+
+CLASSMETHODS::
+METHOD:: new
+ARGUMENT:: radices
+Nonempty literal SequenceableCollection of Integers greater than one, copied at stream start.
+ARGUMENT:: repeats
+Nonnegative Integer or inf, default 1. Literal, Function or Pattern sampled once.
+
+INSTANCEMETHODS::
+METHOD:: storeArgs
+Returns constructor arguments.
+METHOD:: embedInStream
+Yields values and returns the latest inval on termination.
+
+EXAMPLES::
+code::
+PgrayCode([2, 3]).asStream.all;
+::
+
+Coordinates become chord voices and timbral steps, exposing gradual state changes. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PgrayCode / Value stream
+var values = {
+PgrayCode([2, 3]).asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: x, cutoff: 500*(x[0]+1), dur: 0.25, amp: 0.035)
+}.play;
+)
+::
+
+SUBSECTION:: Musical mapping
+Load the example instruments in link::Guides/Patternarium#Example instruments:: first.
+code::
+(
+Pbind(\instrument, \mallet, \degree, PgrayCode([3, 4]).collect { |p| p[0] + (p[1] * 2) }, \dur, 0.125).play;
+)
+::
+
+SUBSECTION:: Discrete synthesis parameter space
+code::
+PgrayCode([3, 2]).collect { |p|
+    (cutoff: [500, 1500, 4000][p[0]], rq: [0.1, 0.5][p[1]])
+}.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PgrayCode / Discrete synthesis parameter space
+var values = {
+PgrayCode([3, 2]).collect { |p|
+    (cutoff: [500, 1500, 4000][p[0]], rq: [0.1, 0.5][p[1]])
+}.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    x.copy.putAll((instrument: \saw, degree: 0, dur: 0.3, amp: 0.07))
+}.play;
+)
+::
+
+SUBSECTION:: One orchestration property at a time
+code::
+PgrayCode([2, 3]).collect { |p|
+    (instrument: [\saw, \farfisa][p[0]], octave: [3, 4, 5][p[1]])
+}.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PgrayCode / One orchestration property at a time
+var values = {
+PgrayCode([2, 3]).collect { |p|
+    (instrument: [\saw, \farfisa][p[0]], octave: [3, 4, 5][p[1]])
+}.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    x.copy.putAll((degree: 0, dur: 0.3, amp: 0.07))
+}.play;
+)
+::
+
+SUBSECTION:: Controlled mutation
+code::
+PgrayCode([3, 2, 2]).collect { |p| [0, 2, 4] + p }.asStream.all;
+::
+
+Coordinates become chord voices and timbral steps, exposing gradual state changes. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PgrayCode / Controlled mutation
+var values = {
+PgrayCode([3, 2, 2]).collect { |p| [0, 2, 4] + p }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: x, cutoff: 500*(x[0]+1), dur: 0.25, amp: 0.035)
+}.play;
+)
+::
+
+SUBSECTION:: Inspecting which coordinate changed
+code::
+Pwindow(PgrayCode([2, 3, 2]), 2).collect { |w| (w[1] - w[0]).abs.indexOf(1) }.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PgrayCode / Inspecting which coordinate changed
+var values = {
+Pwindow(PgrayCode([2, 3, 2]), 2).collect { |w| (w[1] - w[0]).abs.indexOf(1) }.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \mallet, degree: 0, pan: x-1, dur: 0.25, amp: 0.1)
+}.play;
+)
+::
+
+SUBSECTION:: Reducing simultaneous control switches
+code::
+PgrayCode([2, 2, 2]).collect { |p|
+    (bright: p[0], vibrato: p[1], tremolo: p[2])
+}.asStream.all;
+::
+
+Pitch follows the output; repeated phrases make the structure audible. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PgrayCode / Reducing simultaneous control switches
+var values = {
+PgrayCode([2, 2, 2]).collect { |p|
+    (bright: p[0], vibrato: p[1], tremolo: p[2])
+}.asStream.all;
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: x[\vibrato]*7, cutoff: [600,4000][x[\bright]], amp: [0.04,0.1][x[\tremolo]], dur: 0.3)
+}.play;
+)
+::
+
+SUBSECTION:: Channel configuration tests
+code::
+PgrayCode([2, 2, 2, 2]).asStream.all; // one channel-enable bit changes per step
+::
+
+Coordinates become chord voices and timbral steps, exposing gradual state changes. Uses the instruments in link::Guides/Patternarium#Example instruments::.
+code::
+(
+// Sound companion: PgrayCode / Channel configuration tests
+var values = {
+PgrayCode([2, 2, 2, 2]).asStream.all; // one channel-enable bit changes per step
+}.value;
+values = if(values.isArray) { values } { [values] };
+Pseq(values, 4).keep(64).collect { |x|
+    (instrument: \saw, degree: [0,2,4,7], amp: x*0.06, dur: 0.25)
+}.play;
+)
+::
